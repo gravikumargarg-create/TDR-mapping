@@ -23,7 +23,7 @@ The TDR Mapping Sheet Creation tool:
 The tool runs on **Streamlit Cloud**. No local installation required.
 
 **App URL:**  
-**https://tdr-streamlit-sharepoint.streamlit.app**
+**https://gravikumargarg-create-tdr-mapping-app-63mpp8.streamlit.app/**
 
 *(Use the URL above, or the URL shared by your team if different.)*
 

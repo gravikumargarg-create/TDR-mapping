@@ -46,7 +46,7 @@ def main():
     doc.add_paragraph("The tool runs on Streamlit Cloud. No local installation required.")
     doc.add_paragraph()
     add_para(doc, "App URL:", bold=True)
-    doc.add_paragraph("https://tdr-streamlit-sharepoint.streamlit.app")
+    doc.add_paragraph("https://gravikumargarg-create-tdr-mapping-app-63mpp8.streamlit.app/")
     doc.add_paragraph("(Use the URL above, or the URL shared by your team if different.)")
     doc.add_paragraph("• Open the URL in a browser to use the app.")
     doc.add_paragraph()
