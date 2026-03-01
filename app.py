@@ -7,6 +7,7 @@ import os
 import sys
 import tempfile
 import zipfile
+from datetime import datetime
 from io import BytesIO
 
 import streamlit as st
@@ -102,11 +103,12 @@ if run and tdr_file:
                 )
 
             if result_path and os.path.isfile(result_path):
-                st.success("Done. Download your files below.")
                 with open(result_path, "rb") as f:
                     report_bytes = f.read()
-                st.download_button("Download main report", data=report_bytes, file_name=os.path.basename(result_path), mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                report_filename = f"TDR_BAN_Report_{ts}.xlsx"
+                zip_bytes = None
+                zip_filename = f"TDR_per_TDR_files_{ts}.zip"
                 per_tdr_folder = (summary or {}).get("per_tdr_folder")
                 if per_tdr_folder and os.path.isdir(per_tdr_folder):
                     files = [n for n in os.listdir(per_tdr_folder) if n.endswith((".xlsx", ".xlsm"))]
@@ -116,9 +118,14 @@ if run and tdr_file:
                             for n in files:
                                 z.write(os.path.join(per_tdr_folder, n), n)
                         buf.seek(0)
-                        st.download_button("Download per-TDR files (ZIP)", data=buf.getvalue(), file_name="TDR_per_TDR_files.zip", mime="application/zip")
-                if summary:
-                    st.json(summary)
+                        zip_bytes = buf.getvalue()
+                st.session_state["tdr_result"] = {
+                    "report_bytes": report_bytes,
+                    "report_filename": report_filename,
+                    "zip_bytes": zip_bytes,
+                    "zip_filename": zip_filename,
+                    "summary": summary,
+                }
             else:
                 st.error("No TDR data found in the sheet or report generation failed.")
     finally:
@@ -131,3 +138,30 @@ if run and tdr_file:
             pass
 elif run and not tdr_file:
     st.warning("Please upload a TDR Data Excel file.")
+
+# Show download section from session state so both buttons stay visible after clicking either one
+if "tdr_result" in st.session_state:
+    r = st.session_state["tdr_result"]
+    st.success("Done. Download your files below.")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.download_button(
+            "Download main report",
+            data=r["report_bytes"],
+            file_name=r["report_filename"],
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="download_main_report",
+        )
+    with col2:
+        if r.get("zip_bytes"):
+            st.download_button(
+                "Download per-TDR files (ZIP)",
+                data=r["zip_bytes"],
+                file_name=r["zip_filename"],
+                mime="application/zip",
+                key="download_per_tdr_zip",
+            )
+        else:
+            st.caption("No per-TDR files generated.")
+    if r.get("summary"):
+        st.json(r["summary"])
