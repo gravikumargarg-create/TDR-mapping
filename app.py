@@ -62,9 +62,9 @@ st.markdown(
 
 # SharePoint folder link for TDR (Option 2)
 TDR_SHAREPOINT_URL = (
-    "https://amdocs.sharepoint.com/sites/USCCTesting_Offshore/Shared%20Documents/Forms/AllItems.aspx"
-    "?id=%2Fsites%2FUSCCTesting_5FOffshore%2FShared%20Documents%2FRelease%20%26%20OffCycle%2FUTMO%20%2D%20Migration%20%28Data%20creation%29%2FData%20Creation%2FR2%20Data"
-    "&viewid=adae5495%2D8645%2D4cab%2Da505%2D101589d1342a"
+    "https://amdocs.sharepoint.com/:f:/r/sites/USCCTesting_Offshore/Shared%20Documents/"
+    "Release%20%26%20OffCycle/UTMO%20-%20Migration%20(Data%20creation)/Data%20Creation/R2%20Data"
+    "?csf=1&web=1&e=EZDfgA"
 )
 
 # Two columns: TDR (left) and LVT (right)
