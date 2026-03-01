@@ -50,6 +50,11 @@ LVT_SHEET_NAME = "BAN Wise Result"
 # Failures sheet: match any variation of "BAN Wise Failures" (spaces, underscores, case)
 LVT_FAILURES_SHEET_NORMALIZED = "banwisefailures"
 
+# Comments for TDR Info column F: check_id (str) -> comment text. Add more as needed.
+CHECK_ID_COMMENTS = {
+    "3106": "BANs can be used after RS-122932 fix.",
+}
+
 
 def _normalize_sheet_name(name):
     """Return name with spaces/underscores removed and lowercased for matching."""
@@ -674,21 +679,30 @@ def _build_ban_to_failures_from_sheet(ws):
 
 
 def _fill_tdr_info_failure_columns(tdr_ws, ban_to_failures):
-    """Fill columns D (Failure Description) and E (Check ID) in TDR Info by looking up BAN in ban_to_failures. Uses 'Not found' when no failures."""
+    """Fill columns D (Failure Description), E (Check ID), F (Comments) in TDR Info by looking up BAN in ban_to_failures. Uses 'Not found' when no failures."""
     tdr_ws.cell(row=1, column=4, value="Failure Description")
     tdr_ws.cell(row=1, column=5, value="Check ID")
+    tdr_ws.cell(row=1, column=6, value="Comments")
     for r in range(2, tdr_ws.max_row + 1):
         ban_cell = tdr_ws.cell(row=r, column=2).value
         ban_str = _normalize_ban(ban_cell)
         if not ban_str or ban_str not in ban_to_failures:
             tdr_ws.cell(row=r, column=4, value="Not found")
             tdr_ws.cell(row=r, column=5, value="Not found")
+            tdr_ws.cell(row=r, column=6, value="")
             continue
         pairs = ban_to_failures[ban_str]
         descriptions = [p[0] for p in pairs if p[0]]
         check_ids = [p[1] for p in pairs if p[1]]
         tdr_ws.cell(row=r, column=4, value="; ".join(descriptions) if descriptions else "Not found")
         tdr_ws.cell(row=r, column=5, value=", ".join(check_ids) if check_ids else "Not found")
+        # Column F: comments for known check IDs (e.g. 3106 -> "BANs can be used after RS-122932 fix.")
+        comments = []
+        for cid in (check_ids or []):
+            cid_str = str(cid).strip()
+            if cid_str and cid_str in CHECK_ID_COMMENTS:
+                comments.append(CHECK_ID_COMMENTS[cid_str])
+        tdr_ws.cell(row=r, column=6, value="; ".join(comments) if comments else "")
 
 
 def _format_tdr_info_sheet(ws):
@@ -699,7 +713,7 @@ def _format_tdr_info_sheet(ws):
     passed_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
     failed_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
     notfound_fill = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")
-    num_cols = max(5, ws.max_column)
+    num_cols = max(6, ws.max_column)
     for col in range(1, num_cols + 1):
         c = ws.cell(row=1, column=col)
         c.fill = header_fill
@@ -711,6 +725,7 @@ def _format_tdr_info_sheet(ws):
     ws.column_dimensions["C"].width = 14
     ws.column_dimensions["D"].width = 48
     ws.column_dimensions["E"].width = 14
+    ws.column_dimensions["F"].width = 36
     for r in range(2, ws.max_row + 1):
         for col in range(1, num_cols + 1):
             cell = ws.cell(row=r, column=col)
