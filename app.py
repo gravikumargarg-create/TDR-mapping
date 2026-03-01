@@ -33,7 +33,7 @@ st.markdown(
             📋 TDR mapping sheet creation
         </p>
         <p style="margin: 0; font-size: 0.95rem; line-height: 1.5; color: #475569;">
-            Upload your <strong>TDR data sheet</strong> and <strong>LVT report</strong> (input files). 
+            Upload your <strong>TDR data sheet</strong> and <strong>LVT report</strong> (both required). 
             The script will create a detailed mapping and TDR-wise report for further use.
         </p>
     </div>
@@ -64,7 +64,7 @@ if tdr_file and tdr_file.size > 0:
 else:
     st.caption("Upload a TDR Data Excel file to choose which sheet to use.")
 
-lvt_file = st.file_uploader("LVT Report Excel (optional)", type=["xlsx", "xlsm"], help="For BAN status column; if omitted, status will be 'Not found'")
+lvt_file = st.file_uploader("LVT Report Excel (required)", type=["xlsx", "xlsm"], help="BAN-wise list; required for mapping and status")
 # LVT sheet dropdown: right below LVT upload only
 lvt_sheet = None
 if lvt_file and lvt_file.size > 0:
@@ -89,11 +89,15 @@ if lvt_file and lvt_file.size > 0:
         st.warning(f"Could not read LVT file sheets: {e}. Using default sheet name.")
         lvt_sheet = st.text_input("LVT sheet name (fallback)", value=tdr_core.LVT_SHEET_NAME)
 else:
-    st.caption("Upload an LVT report to choose which sheet to use for the BAN-wise list.")
+    st.caption("Required. Upload an LVT report and choose which sheet to use for the BAN-wise list.")
 
 run = st.button("Run TDR")
 
-if run and tdr_file:
+if run and not tdr_file:
+    st.warning("Please upload **TDR Data Excel** (required).")
+elif run and (not lvt_file or lvt_file.size == 0):
+    st.warning("Please upload **LVT Report Excel** (required).")
+elif run and tdr_file and lvt_file and lvt_file.size > 0:
     tmpdir = tempfile.mkdtemp(prefix="tdr_streamlit_")
     try:
         os.environ["TDR_WEB_REPORT_FOLDER"] = tmpdir
@@ -106,11 +110,9 @@ if run and tdr_file:
         if not sheet_name:
             st.error("Please select a TDR Data sheet (re-upload the file if the dropdown did not appear).")
         else:
-            lvt_path = None
-            if lvt_file and lvt_file.size > 0:
-                lvt_path = os.path.join(tmpdir, "lvt_input.xlsx")
-                with open(lvt_path, "wb") as f:
-                    f.write(lvt_file.getvalue())
+            lvt_path = os.path.join(tmpdir, "lvt_input.xlsx")
+            with open(lvt_path, "wb") as f:
+                f.write(lvt_file.getvalue())
             sheet_to_use = (lvt_sheet or tdr_core.LVT_SHEET_NAME).strip() or tdr_core.LVT_SHEET_NAME
             out_path = os.path.join(tmpdir, "TDR_BAN_Report.xlsx")
 
@@ -158,9 +160,6 @@ if run and tdr_file:
             shutil.rmtree(tmpdir, ignore_errors=True)
         except Exception:
             pass
-elif run and not tdr_file:
-    st.warning("Please upload a TDR Data Excel file.")
-
 # Show download section from session state so both buttons stay visible after clicking either one
 if "tdr_result" in st.session_state:
     r = st.session_state["tdr_result"]
