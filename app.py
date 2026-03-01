@@ -175,10 +175,35 @@ if "tdr_result" in st.session_state:
             st.caption("Upload an LVT report and run again to get per-TDR files (ZIP).")
         else:
             st.caption("No per-TDR files generated.")
-    # Summary in user-readable format (no raw JSON)
+    # Summary in user-readable, attractive format
     if r.get("summary"):
         s = r["summary"]
-        st.markdown("**Summary**")
-        st.markdown(f"- **Total BANs:** {s.get('total', 0)} — Passed: {s.get('passed', 0)}, Failed: {s.get('failed', 0)}, Not found: {s.get('not_found', 0)}")
-        st.markdown(f"- **TDR-wise:** Passed: {s.get('tdr_passed', 0)}, Failed: {s.get('tdr_failed', 0)}, Partial: {s.get('tdr_partial', 0)}")
-        st.markdown(f"- **Per-TDR files:** {s.get('per_tdr_count', 0)}")
+        total = s.get("total", 0)
+        passed = s.get("passed", 0)
+        failed = s.get("failed", 0)
+        not_found = s.get("not_found", 0)
+        tdr_p = s.get("tdr_passed", 0)
+        tdr_f = s.get("tdr_failed", 0)
+        tdr_part = s.get("tdr_partial", 0)
+        per_tdr = s.get("per_tdr_count", 0)
+        st.markdown("---")
+        st.markdown("### 📋 Summary")
+        # BAN counts: metric row
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Total BANs", total, help="Total BANs processed")
+        c2.metric("Passed", passed, help="BANs that passed", delta_color="off")
+        c3.metric("Failed", failed, help="BANs that failed", delta_color="off")
+        c4.metric("Not found", not_found, help="BANs not in LVT", delta_color="off")
+        # TDR-wise: metric row
+        st.markdown("**TDR-wise**")
+        d1, d2, d3 = st.columns(3)
+        d1.metric("Passed", tdr_p, delta_color="off")
+        d2.metric("Failed", tdr_f, delta_color="off")
+        d3.metric("Partial", tdr_part, delta_color="off")
+        # Per-TDR files in a small card
+        st.markdown(
+            f'<div style="background: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 100%); border-radius: 8px; '
+            f'padding: 12px 16px; margin-top: 8px; border-left: 4px solid #4a90d9;">'
+            f'<strong>📁 Per-TDR files:</strong> <span style="font-size: 1.2em;">{per_tdr}</span> Excel file(s) generated</div>',
+            unsafe_allow_html=True,
+        )
