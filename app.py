@@ -16,9 +16,30 @@ import streamlit as st
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tdr_core
 
-st.set_page_config(page_title="TDR Data Excel", page_icon="📊", layout="centered")
-st.title("📊 TDR Data Excel")
-st.markdown("Upload your **TDR Data** sheet and optional **LVT report**. Get the main report and one Excel per TDR (same as the local script).")
+st.set_page_config(page_title="TDR mapping sheet creation", page_icon="📋", layout="centered")
+
+# Attractive header and description
+st.markdown(
+    """
+    <div style="
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
+        border-radius: 12px;
+        padding: 24px 28px;
+        margin-bottom: 24px;
+        border-left: 5px solid #2563eb;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    ">
+        <p style="margin: 0 0 8px 0; font-size: 1.75rem; font-weight: 700; color: #1e293b; letter-spacing: -0.02em;">
+            📋 TDR mapping sheet creation
+        </p>
+        <p style="margin: 0; font-size: 0.95rem; line-height: 1.5; color: #475569;">
+            Upload your <strong>TDR data sheet</strong> and <strong>LVT report</strong> (input files). 
+            The script will create a detailed mapping and TDR-wise report for further use.
+        </p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 tdr_file = st.file_uploader("TDR Data Excel (required)", type=["xlsx", "xlsm"], help="Excel file with TDR sections")
 # TDR sheet dropdown: right below TDR upload only
@@ -175,7 +196,7 @@ if "tdr_result" in st.session_state:
             st.caption("Upload an LVT report and run again to get per-TDR files (ZIP).")
         else:
             st.caption("No per-TDR files generated.")
-    # Summary in user-readable, attractive format
+    # Summary: rich, colored dashboard-style layout
     if r.get("summary"):
         s = r["summary"]
         total = s.get("total", 0)
@@ -187,23 +208,38 @@ if "tdr_result" in st.session_state:
         tdr_part = s.get("tdr_partial", 0)
         per_tdr = s.get("per_tdr_count", 0)
         st.markdown("---")
-        st.markdown("### 📋 Summary")
-        # BAN counts: metric row
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Total BANs", total, help="Total BANs processed")
-        c2.metric("Passed", passed, help="BANs that passed", delta_color="off")
-        c3.metric("Failed", failed, help="BANs that failed", delta_color="off")
-        c4.metric("Not found", not_found, help="BANs not in LVT", delta_color="off")
-        # TDR-wise: metric row
-        st.markdown("**TDR-wise**")
-        d1, d2, d3 = st.columns(3)
-        d1.metric("Passed", tdr_p, delta_color="off")
-        d2.metric("Failed", tdr_f, delta_color="off")
-        d3.metric("Partial", tdr_part, delta_color="off")
-        # Per-TDR files in a small card
         st.markdown(
-            f'<div style="background: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 100%); border-radius: 8px; '
-            f'padding: 12px 16px; margin-top: 8px; border-left: 4px solid #4a90d9;">'
-            f'<strong>📁 Per-TDR files:</strong> <span style="font-size: 1.2em;">{per_tdr}</span> Excel file(s) generated</div>',
+            '<p style="font-size: 1.35rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">📋 Summary</p>',
+            unsafe_allow_html=True,
+        )
+        # BAN counts: colored cards
+        st.markdown(
+            '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px;">'
+            f'<div style="background: linear-gradient(145deg, #f1f5f9 0%, #e2e8f0 100%); border-radius: 10px; padding: 14px 16px; border-left: 4px solid #64748b; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">'
+            f'<div style="font-size: 0.8rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em;">Total BANs</div>'
+            f'<div style="font-size: 1.75rem; font-weight: 700; color: #1e293b;">{total}</div></div>'
+            f'<div style="background: linear-gradient(145deg, #dcfce7 0%, #bbf7d0 100%); border-radius: 10px; padding: 14px 16px; border-left: 4px solid #16a34a; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">'
+            f'<div style="font-size: 0.8rem; color: #15803d; font-weight: 600; text-transform: uppercase;">Passed</div>'
+            f'<div style="font-size: 1.75rem; font-weight: 700; color: #166534;">{passed}</div></div>'
+            f'<div style="background: linear-gradient(145deg, #fee2e2 0%, #fecaca 100%); border-radius: 10px; padding: 14px 16px; border-left: 4px solid #dc2626; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">'
+            f'<div style="font-size: 0.8rem; color: #b91c1c; font-weight: 600; text-transform: uppercase;">Failed</div>'
+            f'<div style="font-size: 1.75rem; font-weight: 700; color: #991b1b;">{failed}</div></div>'
+            f'<div style="background: linear-gradient(145deg, #fef3c7 0%, #fde68a 100%); border-radius: 10px; padding: 14px 16px; border-left: 4px solid #d97706; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">'
+            f'<div style="font-size: 0.8rem; color: #b45309; font-weight: 600; text-transform: uppercase;">Not found</div>'
+            f'<div style="font-size: 1.75rem; font-weight: 700; color: #92400e;">{not_found}</div></div>'
+            "</div>"
+            "<p style='font-size: 0.9rem; font-weight: 600; color: #475569; margin: 4px 0 8px 0;'>TDR-wise</p>"
+            '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">'
+            f'<div style="background: linear-gradient(145deg, #dcfce7 0%, #bbf7d0 100%); border-radius: 10px; padding: 14px 16px; border-left: 4px solid #16a34a; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">'
+            f'<div style="font-size: 0.8rem; color: #15803d; font-weight: 600;">Passed</div><div style="font-size: 1.6rem; font-weight: 700; color: #166534;">{tdr_p}</div></div>'
+            f'<div style="background: linear-gradient(145deg, #fee2e2 0%, #fecaca 100%); border-radius: 10px; padding: 14px 16px; border-left: 4px solid #dc2626; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">'
+            f'<div style="font-size: 0.8rem; color: #b91c1c; font-weight: 600;">Failed</div><div style="font-size: 1.6rem; font-weight: 700; color: #991b1b;">{tdr_f}</div></div>'
+            f'<div style="background: linear-gradient(145deg, #fef3c7 0%, #fde68a 100%); border-radius: 10px; padding: 14px 16px; border-left: 4px solid #d97706; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">'
+            f'<div style="font-size: 0.8rem; color: #b45309; font-weight: 600;">Partial</div><div style="font-size: 1.6rem; font-weight: 700; color: #92400e;">{tdr_part}</div></div>'
+            "</div>"
+            f'<div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-radius: 10px; padding: 16px 20px; border-left: 5px solid #2563eb; box-shadow: 0 2px 6px rgba(37,99,235,0.15);">'
+            f'<span style="font-size: 1.1rem; font-weight: 600; color: #1e40af;">📁 Per-TDR files</span> '
+            f'<span style="font-size: 1.4rem; font-weight: 700; color: #1e3a8a;">{per_tdr}</span> '
+            f'<span style="color: #3730a3;">Excel file(s) generated</span></div>',
             unsafe_allow_html=True,
         )
