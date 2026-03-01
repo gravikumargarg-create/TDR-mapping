@@ -679,11 +679,18 @@ def _build_ban_to_failures_from_sheet(ws):
 
 
 def _fill_tdr_info_failure_columns(tdr_ws, ban_to_failures):
-    """Fill columns D (Failure Description), E (Check ID), F (Comments) in TDR Info by looking up BAN in ban_to_failures. Uses 'Not found' when no failures."""
+    """Fill columns D (Failure Description), E (Check ID), F (Comments). For Passed status use N/A; else look up BAN in ban_to_failures."""
     tdr_ws.cell(row=1, column=4, value="Failure Description")
     tdr_ws.cell(row=1, column=5, value="Check ID")
     tdr_ws.cell(row=1, column=6, value="Comments")
     for r in range(2, tdr_ws.max_row + 1):
+        status_cell = tdr_ws.cell(row=r, column=3).value
+        status_str = (str(status_cell).strip().lower() if status_cell else "") or ""
+        if status_str == "passed":
+            tdr_ws.cell(row=r, column=4, value="N/A")
+            tdr_ws.cell(row=r, column=5, value="N/A")
+            tdr_ws.cell(row=r, column=6, value="")
+            continue
         ban_cell = tdr_ws.cell(row=r, column=2).value
         ban_str = _normalize_ban(ban_cell)
         if not ban_str or ban_str not in ban_to_failures:
