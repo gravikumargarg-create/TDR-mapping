@@ -925,7 +925,7 @@ def _format_tdr_per_sheet_wide(ws):
 def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=None, lvt_sheet_name=None):
     """
     For each (file, sheets) in all_sources, extract TDR→BAN mapping and print.
-    Saves one Excel with TDR Info sheet + BAN Wise Result copy when output_excel is set.
+    Saves one Excel with TDR Info sheet + TDR Summary when output_excel is set (Status/failures filled from LVT; BAN Wise Result sheet not copied).
     lvt_sheet_name: sheet to use in LVT workbook for BAN-wise list; defaults to LVT_SHEET_NAME if None.
     """
     wb = None
@@ -966,7 +966,7 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
             wb.close()
             wb = None
 
-    # Single Excel: TDR Info sheet + copy of BAN Wise Result; fill Status in TDR Info column C
+    # Single Excel: TDR Info sheet + TDR Summary only (no BAN Wise Result copy; Status filled from LVT)
     if output_excel and all_rows:
         out_wb = Workbook()
         out_ws = out_wb.active
@@ -974,15 +974,14 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
         out_ws.append(["TDR", "BAN", "Status"])
         for row in all_rows:
             out_ws.append(list(row))  # Status filled in column C below
-        ban_wise_ws = None
+        ban_to_status = {}
         ban_to_failures = {}
         sheet_to_use = (lvt_sheet_name or LVT_SHEET_NAME) if lvt_report_path else None
         if lvt_report_path and os.path.isfile(lvt_report_path) and sheet_to_use:
             try:
                 lvt_wb = load_workbook(lvt_report_path, read_only=True, data_only=True)
                 if sheet_to_use in lvt_wb.sheetnames:
-                    _copy_sheet_into_workbook(lvt_wb[sheet_to_use], out_wb, sheet_to_use)
-                    ban_wise_ws = out_wb[sheet_to_use]
+                    ban_to_status = _build_ban_to_status_from_sheet(lvt_wb[sheet_to_use])
                 failures_sheet_name = _find_failures_sheet_in_workbook(lvt_wb)
                 if failures_sheet_name is not None:
                     ban_to_failures = _build_ban_to_failures_from_sheet(lvt_wb[failures_sheet_name])
@@ -990,9 +989,6 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
             except Exception:
                 pass
         summary = {"total": len(all_rows), "passed": 0, "failed": 0, "not_found": 0}
-        ban_to_status = {}
-        if ban_wise_ws is not None:
-            ban_to_status = _build_ban_to_status_from_sheet(ban_wise_ws)
         _fill_tdr_info_status_column(out_ws, ban_to_status)
         _fill_tdr_info_failure_columns(out_ws, ban_to_failures)
         for _tdr, ban in all_rows:
