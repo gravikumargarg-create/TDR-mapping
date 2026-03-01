@@ -36,6 +36,14 @@ On your dashboard (e.g. QE Tools), add a link that opens the Streamlit app in a 
 Example: in the TDR Data Excel tab you can add:  
 *"Or use the free web version: [Open TDR tool](https://your-app-name.streamlit.app)"*
 
+## Runbook (for team sharing)
+
+- **RUNBOOK.md** – Full runbook (purpose, access, inputs, steps, outputs, troubleshooting). Open in any editor or in Word (File → Open → select RUNBOOK.md, then Save As → .docx if needed).
+- **Word file:** To generate **RUNBOOK.docx** for sharing:  
+  `pip install python-docx`  
+  `python generate_runbook.py`  
+  This creates **RUNBOOK.docx** in the repo folder.
+
 ## Revert to state before direct SharePoint
 
 If direct SharePoint integration causes issues, revert to link + upload only:

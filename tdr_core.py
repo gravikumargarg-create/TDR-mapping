@@ -615,6 +615,14 @@ def _add_device_details_sheet_to_workbook(wb, device_data, bans_set):
         s = (str(val).strip() if val is not None else "")
         if s in bans_normalized:
             matching.append(row)
+    # Sort by CUSTOMER_ID (column at cust_idx) ascending
+    def _cust_sort_key(r):
+        v = r[cust_idx] if r and len(r) > cust_idx else None
+        if v is None:
+            return ""
+        s = str(v).strip()
+        return s.zfill(20) if s.isdigit() else s
+    matching.sort(key=_cust_sort_key)
     # Create sheet
     ws = wb.create_sheet(title=DEVICE_DETAILS_SHEET_NAME[:31])
     header_row = list(headers)
