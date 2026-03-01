@@ -60,12 +60,38 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# SharePoint folder link for TDR (Option 2)
+TDR_SHAREPOINT_URL = (
+    "https://amdocs.sharepoint.com/sites/USCCTesting_Offshore/Shared%20Documents/Forms/AllItems.aspx"
+    "?id=%2Fsites%2FUSCCTesting_5FOffshore%2FShared%20Documents%2FRelease%20%26%20OffCycle%2FUTMO%20%2D%20Migration%20%28Data%20creation%29%2FData%20Creation%2FR2%20Data"
+    "&viewid=adae5495%2D8645%2D4cab%2Da505%2D101589d1342a"
+)
+
 # Two columns: TDR (left) and LVT (right)
 col_tdr, col_lvt = st.columns(2)
 
 with col_tdr:
     st.markdown("**TDR Data**")
-    tdr_file = st.file_uploader("TDR Excel (required)", type=["xlsx", "xlsm"], help="TDR sections", key="tdr_upload")
+    tdr_source = st.radio(
+        "TDR file from",
+        options=["Local file", "SharePoint"],
+        horizontal=True,
+        key="tdr_source",
+        help="Choose local upload or download from SharePoint then upload",
+    )
+    if tdr_source == "SharePoint":
+        st.markdown(
+            f'<a href="{TDR_SHAREPOINT_URL}" target="_blank" rel="noopener" '
+            'style="font-size: 0.85rem; color: #0d9488;">📂 Open TDR folder on SharePoint</a>',
+            unsafe_allow_html=True,
+        )
+        st.caption("Download the TDR file from SharePoint, then upload it below.")
+    tdr_file = st.file_uploader(
+        "TDR Excel (required)",
+        type=["xlsx", "xlsm"],
+        help="TDR sections" if tdr_source == "Local file" else "Upload the file you downloaded from SharePoint",
+        key="tdr_upload",
+    )
     tdr_sheet = None
     if tdr_file and tdr_file.size > 0:
         try:
