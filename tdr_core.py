@@ -70,6 +70,34 @@ def _find_failures_sheet_in_workbook(wb):
         if _normalize_sheet_name(sheet_name) == target:
             return sheet_name
     return None
+
+
+def detect_excel_roles(wb):
+    """
+    Detect which roles this workbook can serve (TDR Data, LVT Report, Device Details).
+    Returns dict: tdr_sheets=[], lvt_sheets=[], device_sheets=[] (sheet names).
+    """
+    result = {"tdr_sheets": [], "lvt_sheets": [], "device_sheets": []}
+    lvt_target = _normalize_sheet_name(LVT_SHEET_NAME)  # "banwiseresult"
+    for name in wb.sheetnames:
+        try:
+            ws = wb[name]
+        except Exception:
+            continue
+        try:
+            if extract_tdr_ban_mapping(ws):
+                result["tdr_sheets"].append(name)
+        except Exception:
+            pass
+        if _normalize_sheet_name(name) == lvt_target:
+            result["lvt_sheets"].append(name)
+        try:
+            first_row = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), None)
+            if first_row and _find_column_index_in_row(list(first_row), DEVICE_DETAILS_CUSTOMER_ID_HEADERS):
+                result["device_sheets"].append(name)
+        except Exception:
+            pass
+    return result
 # Folder to scan for LVT Excel files (user picks file and optionally sheet)
 TDR_DELIVERY_FOLDER = os.path.join(BASE_FOLDER, "TDR deliver")
 

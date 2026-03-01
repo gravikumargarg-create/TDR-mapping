@@ -90,113 +90,117 @@ if tdr_source == "SharePoint" and not use_sharepoint_direct:
     )
     st.caption("Download the file from SharePoint, then upload it in the left box below.")
 
-# One row: two columns with only headers + uploaders (same height)
-col_tdr, col_lvt = st.columns(2)
-with col_tdr:
-    st.markdown("**TDR Data**")
-with col_lvt:
-    st.markdown("**LVT Report**")
-
-with col_tdr:
-    if use_sharepoint_direct:
-        token = sharepoint_graph.get_token()
-        if not token:
-            st.warning("Could not get SharePoint token. Check AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET in secrets.")
-        else:
-            files = sharepoint_graph.list_tdr_excel_files(token)
-            if not files:
-                st.info("No Excel files found in the TDR folder.")
-            else:
-                selected_name = st.selectbox(
-                    "TDR file (SharePoint)",
-                    options=[f["name"] for f in files],
-                    key="sp_tdr_file",
-                    help="Pick a file from the R2 Data folder",
-                )
-                selected = next((f for f in files if f["name"] == selected_name), None)
-                if selected:
-                    cache_key = f"sp_tdr_{selected['id']}"
-                    if cache_key not in st.session_state:
-                        with st.spinner("Loading file…"):
-                            content = sharepoint_graph.download_file_content(
-                                token, selected["drive_id"], selected["id"]
-                            )
-                        if content:
-                            st.session_state[cache_key] = content
-                    content = st.session_state.get(cache_key) if cache_key in st.session_state else None
-                    if content:
-                        tdr_bytes = content
-                        tdr_name = selected["name"]
-                        try:
-                            wb_tdr = tdr_core.load_workbook(BytesIO(content), read_only=True)
-                            tdr_sheet_names = wb_tdr.sheetnames
-                            wb_tdr.close()
-                            if tdr_sheet_names:
-                                tdr_sheet = st.selectbox("Sheet", options=tdr_sheet_names, index=0, key="tdr_sheet")
-                            else:
-                                st.caption("No sheets.")
-                        except Exception as e:
-                            st.warning(str(e))
-                    else:
-                        st.warning("Could not download file.")
+# --- Single multi-file upload OR SharePoint for TDR ---
+if use_sharepoint_direct:
+    token = sharepoint_graph.get_token()
+    if not token:
+        st.warning("Could not get SharePoint token. Check AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET in secrets.")
     else:
-        tdr_file = st.file_uploader(
-            "TDR Excel (required)",
-            type=["xlsx", "xlsm"],
-            help="TDR sections" if tdr_source == "Local file" else "Upload the file you downloaded from SharePoint",
-            key="tdr_upload",
-        )
-        if tdr_file and tdr_file.size > 0:
+        files = sharepoint_graph.list_tdr_excel_files(token)
+        if not files:
+            st.info("No Excel files found in the TDR folder.")
+        else:
+            selected_name = st.selectbox(
+                "TDR file (SharePoint)",
+                options=[f["name"] for f in files],
+                key="sp_tdr_file",
+                help="Pick a file from the R2 Data folder",
+            )
+            selected = next((f for f in files if f["name"] == selected_name), None)
+            if selected:
+                cache_key = f"sp_tdr_{selected['id']}"
+                if cache_key not in st.session_state:
+                    with st.spinner("Loading file…"):
+                        content = sharepoint_graph.download_file_content(
+                            token, selected["drive_id"], selected["id"]
+                        )
+                    if content:
+                        st.session_state[cache_key] = content
+                content = st.session_state.get(cache_key) if cache_key in st.session_state else None
+                if content:
+                    tdr_bytes = content
+                    tdr_name = selected["name"]
+                    try:
+                        wb_tdr = tdr_core.load_workbook(BytesIO(content), read_only=True)
+                        tdr_sheet_names = wb_tdr.sheetnames
+                        wb_tdr.close()
+                        if tdr_sheet_names:
+                            tdr_sheet = st.selectbox("Sheet (TDR)", options=tdr_sheet_names, index=0, key="tdr_sheet")
+                        else:
+                            st.caption("No sheets.")
+                    except Exception as e:
+                        st.warning(str(e))
+                else:
+                    st.warning("Could not download file.")
+    # When SharePoint TDR: still need LVT (and optional Device) from uploads
+    st.markdown("**Upload file(s) for LVT Report and/or Device Details**")
+    upload_files = st.file_uploader("Excel file(s)", type=["xlsx", "xlsm"], accept_multiple_files=True, key="multi_upload", help="Upload one or more Excel files. We'll detect LVT Report and Device Details.")
+else:
+    st.markdown("**Upload file(s) – we'll detect TDR Data, LVT Report, and Device Details**")
+    upload_files = st.file_uploader("Excel file(s)", type=["xlsx", "xlsm"], accept_multiple_files=True, key="multi_upload", help="Select multiple files at once. The script will detect which is TDR Data, which is LVT Report, and which is Device Details.")
+
+# Detect roles from uploaded files and show sheet selection by file name
+tdr_file = None
+lvt_file = None
+device_file = None
+detection_cache_key = "tdr_detection_" + (str(len(upload_files)) if upload_files else "0") + "_" + "_".join((f.name + str(f.size) for f in upload_files)) if upload_files else ""
+if upload_files:
+    if detection_cache_key != st.session_state.get("_last_detection_key"):
+        detected = {"tdr": None, "lvt": None, "device": None}
+        for uf in upload_files:
+            try:
+                buf = BytesIO(uf.getvalue())
+                wb = tdr_core.load_workbook(buf, read_only=True, data_only=True)
+                roles = tdr_core.detect_excel_roles(wb)
+                wb.close()
+                if roles["tdr_sheets"] and detected["tdr"] is None:
+                    detected["tdr"] = (uf, roles["tdr_sheets"])
+                if roles["lvt_sheets"] and detected["lvt"] is None:
+                    detected["lvt"] = (uf, roles["lvt_sheets"])
+                if roles["device_sheets"] and detected["device"] is None:
+                    detected["device"] = (uf, roles["device_sheets"])
+            except Exception:
+                pass
+        st.session_state["_detected"] = detected
+        st.session_state["_last_detection_key"] = detection_cache_key
+    detected = st.session_state.get("_detected") or {"tdr": None, "lvt": None, "device": None}
+
+    if not use_sharepoint_direct:
+        tdr_file, tdr_sheet_list = detected["tdr"] or (None, [])
+        if tdr_file and tdr_sheet_list:
             tdr_bytes = tdr_file.getvalue()
             tdr_name = tdr_file.name
-            try:
-                wb_tdr = tdr_core.load_workbook(BytesIO(tdr_bytes), read_only=True)
-                tdr_sheet_names = wb_tdr.sheetnames
-                wb_tdr.close()
-                if tdr_sheet_names:
-                    tdr_sheet = st.selectbox("Sheet", options=tdr_sheet_names, index=0, key="tdr_sheet")
-                else:
-                    st.caption("No sheets.")
-            except Exception as e:
-                st.warning(str(e))
+            tdr_sheet = st.selectbox("**TDR Data** → " + tdr_file.name, options=tdr_sheet_list, index=0, key="tdr_sheet")
         else:
-            st.caption("Upload file to pick sheet." if tdr_source == "Local file" else "Upload file or set secrets for direct pick.")
+            if upload_files:
+                st.info("No TDR Data detected in uploaded files (no sheet with TDR sections). Upload an Excel that contains TDR-###### and BANs.")
 
-with col_lvt:
-    lvt_file = st.file_uploader("LVT Excel (required)", type=["xlsx", "xlsm"], help="BAN-wise list", key="lvt_upload")
-    lvt_sheet = None
-    if lvt_file and lvt_file.size > 0:
-        try:
-            wb_lvt = tdr_core.load_workbook(BytesIO(lvt_file.getvalue()), read_only=True)
-            lvt_sheet_names = wb_lvt.sheetnames
-            wb_lvt.close()
-            if lvt_sheet_names:
-                default_idx = lvt_sheet_names.index(tdr_core.LVT_SHEET_NAME) if tdr_core.LVT_SHEET_NAME in lvt_sheet_names else 0
-                lvt_sheet = st.selectbox("Sheet", options=lvt_sheet_names, index=default_idx, key="lvt_sheet")
-            else:
-                st.caption("No sheets.")
-        except Exception as e:
-            st.warning(str(e))
-            lvt_sheet = st.text_input("Sheet name", value=tdr_core.LVT_SHEET_NAME, key="lvt_fallback")
+    lvt_file, lvt_sheet_list = detected["lvt"] or (None, [])
+    if lvt_file and lvt_sheet_list:
+        default_idx = lvt_sheet_list.index(tdr_core.LVT_SHEET_NAME) if tdr_core.LVT_SHEET_NAME in lvt_sheet_list else 0
+        lvt_sheet = st.selectbox("**LVT Report** → " + lvt_file.name, options=lvt_sheet_list, index=default_idx, key="lvt_sheet")
     else:
-        st.caption("Upload file to pick sheet.")
+        lvt_sheet = None
+        if upload_files and not detected["lvt"]:
+            st.info("No LVT Report detected (no sheet named 'BAN Wise Result'). Add a file that has that sheet.")
 
-st.markdown("**Device Details (optional)**")
-device_file = st.file_uploader(
-    "Device Details Excel",
-    type=["xlsx", "xlsm"],
-    key="device_upload",
-    help="Excel with CUSTOMER_ID and device columns (MSISDN, IMEI, ESN, EID, etc.). Adds a 'Device Details' sheet to each TDR-wise file for matching BANs.",
-)
-st.caption("If provided, each TDR-wise Excel will get a 'Device Details' sheet with rows for that TDR's BANs/Customer IDs.")
+    device_file, device_sheet_list = detected["device"] or (None, [])
+    if device_file and device_sheet_list:
+        st.caption("**Device Details** → " + device_file.name + " (sheet used: first with CUSTOMER_ID)")
+    else:
+        device_file = None
+else:
+    lvt_sheet = None
+    if not use_sharepoint_direct:
+        st.caption("Upload one or more Excel files to detect TDR Data, LVT Report, and Device Details.")
 
 st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
 run = st.button("Run TDR", type="primary")
 
 if run and not tdr_bytes:
-    st.warning("Please provide **TDR Data** (upload or pick from SharePoint).")
+    st.warning("Please provide **TDR Data** (upload file(s) or pick from SharePoint).")
 elif run and (not lvt_file or lvt_file.size == 0):
-    st.warning("Please upload **LVT Report Excel** (required).")
+    st.warning("Please upload file(s) that include **LVT Report** (sheet named BAN Wise Result).")
 elif run and tdr_bytes and tdr_sheet and lvt_file and lvt_file.size > 0:
     tmpdir = tempfile.mkdtemp(prefix="tdr_streamlit_")
     try:
