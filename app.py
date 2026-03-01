@@ -22,6 +22,28 @@ st.markdown("Upload your **TDR Data** sheet and optional **LVT report**. Get the
 tdr_file = st.file_uploader("TDR Data Excel (required)", type=["xlsx", "xlsm"], help="Excel file with TDR sections")
 lvt_file = st.file_uploader("LVT Report Excel (optional)", type=["xlsx", "xlsm"], help="For BAN status column; if omitted, status will be 'Not found'")
 
+# When TDR file is uploaded, read sheet names and show dropdown
+tdr_sheet = None
+if tdr_file and tdr_file.size > 0:
+    try:
+        wb_tdr = tdr_core.load_workbook(BytesIO(tdr_file.getvalue()), read_only=True)
+        tdr_sheet_names = wb_tdr.sheetnames
+        wb_tdr.close()
+        if tdr_sheet_names:
+            tdr_sheet = st.selectbox(
+                "TDR Data sheet",
+                options=tdr_sheet_names,
+                index=0,
+                key="tdr_sheet",
+                help="Sheet in the TDR file that contains TDR sections (usually the first sheet)",
+            )
+        else:
+            st.caption("TDR file has no sheets.")
+    except Exception as e:
+        st.warning(f"Could not read TDR file sheets: {e}.")
+else:
+    st.caption("Upload a TDR Data Excel file to choose which sheet to use.")
+
 # When LVT is uploaded, read sheet names and show dropdown; otherwise no sheet choice needed
 lvt_sheet = None
 if lvt_file and lvt_file.size > 0:
@@ -37,6 +59,7 @@ if lvt_file and lvt_file.size > 0:
                 "LVT sheet for BAN-wise list",
                 options=lvt_sheet_names,
                 index=default_idx,
+                key="lvt_sheet",
                 help="Sheet in the LVT report that contains the BAN-wise list (default: BAN Wise Result if present)",
             )
         else:
@@ -57,12 +80,10 @@ if run and tdr_file:
         with open(tdr_path, "wb") as f:
             f.write(tdr_file.getvalue())
 
-        # First sheet from TDR file
-        wb = tdr_core.load_workbook(tdr_path, read_only=True)
-        sheet_name = wb.sheetnames[0] if wb.sheetnames else None
-        wb.close()
+        # Use the sheet selected from dropdown (tdr_sheet set when TDR file was uploaded)
+        sheet_name = tdr_sheet
         if not sheet_name:
-            st.error("TDR file has no sheets.")
+            st.error("Please select a TDR Data sheet (re-upload the file if the dropdown did not appear).")
         else:
             lvt_path = None
             if lvt_file and lvt_file.size > 0:
