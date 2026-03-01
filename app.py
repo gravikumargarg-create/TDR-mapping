@@ -73,33 +73,30 @@ tdr_bytes = None
 tdr_name = None
 tdr_sheet = None
 
-# Two columns from the start so labels and uploaders align
-col_tdr, col_lvt = st.columns(2)
+# TDR source choice above both columns so upload row is perfectly aligned
+tdr_source = st.radio(
+    "TDR file from",
+    options=["Local file", "SharePoint"],
+    horizontal=True,
+    key="tdr_source",
+    help="Local upload or pick a file directly from SharePoint (if configured)",
+)
+use_sharepoint_direct = tdr_source == "SharePoint" and sharepoint_graph.has_sharepoint_credentials()
+if tdr_source == "SharePoint" and not use_sharepoint_direct:
+    st.markdown(
+        f'<a href="{TDR_SHAREPOINT_URL}" target="_blank" rel="noopener" '
+        'style="font-size: 0.85rem; color: #0d9488;">📂 Open TDR folder on SharePoint</a>',
+        unsafe_allow_html=True,
+    )
+    st.caption("Download the file from SharePoint, then upload it in the left box below.")
 
+# One row: two columns with only headers + uploaders (same height)
+col_tdr, col_lvt = st.columns(2)
 with col_tdr:
     st.markdown("**TDR Data**")
-    tdr_source = st.radio(
-        "TDR file from",
-        options=["Local file", "SharePoint"],
-        horizontal=True,
-        key="tdr_source",
-        help="Local upload or pick a file directly from SharePoint (if configured)",
-    )
-    use_sharepoint_direct = tdr_source == "SharePoint" and sharepoint_graph.has_sharepoint_credentials()
-    if tdr_source == "SharePoint" and not use_sharepoint_direct:
-        st.markdown(
-            f'<a href="{TDR_SHAREPOINT_URL}" target="_blank" rel="noopener" '
-            'style="font-size: 0.85rem; color: #0d9488;">📂 Open TDR folder on SharePoint</a>',
-            unsafe_allow_html=True,
-        )
-        st.caption("Download from SharePoint, then upload below. Or set app secrets for direct pick.")
-
 with col_lvt:
     st.markdown("**LVT Report**")
-    # Spacer so "LVT Excel" label lines up with "TDR Excel" (uploaders in same row)
-    st.markdown("<div style='min-height: 52px;'></div>", unsafe_allow_html=True)
 
-# Upload areas (same row, aligned)
 with col_tdr:
     if use_sharepoint_direct:
         token = sharepoint_graph.get_token()
