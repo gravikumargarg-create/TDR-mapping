@@ -31,7 +31,7 @@ def main():
         "The TDR Mapping Sheet Creation tool:"
     )
     doc.add_paragraph(
-        "• Reads TDR Data (Excel with TDR-###### sections and BANs) and LVT Report (Excel with BAN-wise status, e.g. BAN Wise Result)."
+        "• Reads TDR Data (Excel with TDR-###### sections and BANs), LVT Report (Excel with BAN-wise status, e.g. BAN Wise Result), and optionally Device Details (Excel with CUSTOMER_ID and device columns)."
     )
     doc.add_paragraph(
         "• Produces: (1) A main report Excel with TDR Info (TDR, BAN, Status, Failure Description, Check ID, Comments) and TDR Summary; "

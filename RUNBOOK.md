@@ -10,7 +10,7 @@
 
 The TDR Mapping Sheet Creation tool:
 
-- Reads **TDR Data** (Excel with TDR-###### sections and BANs) and **LVT Report** (Excel with BAN-wise status, e.g. BAN Wise Result).
+- Reads **TDR Data** (Excel with TDR-###### sections and BANs), **LVT Report** (Excel with BAN-wise status, e.g. BAN Wise Result), and optionally **Device Details** (Excel with CUSTOMER_ID and device columns).
 - Produces:
   - A **main report** Excel with **TDR Info** (TDR, BAN, Status, Failure Description, Check ID, Comments) and **TDR Summary**.
   - **Per-TDR Excel files** (one per TDR) in a ZIP, each with the TDR section and optionally a **Device Details** sheet (when Device Details Excel is provided).
