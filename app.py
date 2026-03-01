@@ -23,10 +23,8 @@ st.markdown(
     """
     <style>
     .stApp { background: #f1f5f9 !important; }
-    .block-container { padding: 0.25rem 1.5rem 1.5rem !important; max-width: 880px !important; }
+    .block-container { padding: 1rem 1.5rem 1.5rem !important; max-width: 880px !important; }
     div[data-testid="stVerticalBlock"] > div { padding: 0.15rem 0 !important; }
-    [data-testid="stAppViewContainer"] > section { padding-top: 0 !important; }
-    header[data-testid="stHeader"] { padding-top: 0 !important; }
     section[data-testid="stFileUploader"] {
         background: #fff !important; border-radius: 8px !important; padding: 14px !important;
         border: 1px solid #e2e8f0 !important; border-top: 3px solid #0d9488 !important;
