@@ -23,8 +23,9 @@ st.markdown(
     """
     <style>
     .stApp { background: #f1f5f9 !important; }
-    .block-container { padding: 1rem 1.5rem 1.5rem !important; max-width: 880px !important; }
+    .block-container { padding: 0.4rem 1.5rem 1.5rem !important; max-width: 880px !important; }
     div[data-testid="stVerticalBlock"] > div { padding: 0.15rem 0 !important; }
+    [data-testid="stAppViewContainer"] > section { padding-top: 0.5rem !important; }
     section[data-testid="stFileUploader"] {
         background: #fff !important; border-radius: 8px !important; padding: 14px !important;
         border: 1px solid #e2e8f0 !important; border-top: 3px solid #0d9488 !important;
@@ -44,13 +45,14 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# New header: teal bar, white text
+# New header: teal bar, white text, centered
 st.markdown(
     """
     <div style="
         background: linear-gradient(90deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%);
         color: #fff; padding: 14px 18px; border-radius: 10px; margin-bottom: 16px;
         box-shadow: 0 2px 8px rgba(15, 118, 110, 0.3);
+        text-align: center;
     ">
         <div style="font-size: 1.35rem; font-weight: 700; margin-bottom: 4px;">TDR mapping sheet creation</div>
         <div style="font-size: 0.8rem; opacity: 0.95;">Upload TDR data + LVT report (both required) → get mapping and TDR-wise reports.</div>
@@ -194,19 +196,23 @@ if "tdr_result" in st.session_state:
         s = r["summary"]
         total, passed, failed, not_found = s.get("total", 0), s.get("passed", 0), s.get("failed", 0), s.get("not_found", 0)
         tdr_p, tdr_f, tdr_part = s.get("tdr_passed", 0), s.get("tdr_failed", 0), s.get("tdr_partial", 0)
+        total_tdr = tdr_p + tdr_f + tdr_part
         per_tdr = s.get("per_tdr_count", 0)
         st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+        # Row 1: BAN (4 cards)
         st.markdown(
             '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 8px;">'
-            f'<div style="background: #f8fafc; border-radius: 6px; padding: 10px 12px; border-left: 3px solid #64748b;"><div style="font-size: 0.7rem; color: #64748b; font-weight: 600;">TOTAL</div><div style="font-size: 1.25rem; font-weight: 700; color: #1e293b;">{total}</div></div>'
+            f'<div style="background: #f8fafc; border-radius: 6px; padding: 10px 12px; border-left: 3px solid #64748b;"><div style="font-size: 0.7rem; color: #64748b; font-weight: 600;">TOTAL BAN</div><div style="font-size: 1.25rem; font-weight: 700; color: #1e293b;">{total}</div></div>'
             f'<div style="background: #ecfdf5; border-radius: 6px; padding: 10px 12px; border-left: 3px solid #10b981;"><div style="font-size: 0.7rem; color: #059669; font-weight: 600;">PASSED</div><div style="font-size: 1.25rem; font-weight: 700; color: #047857;">{passed}</div></div>'
             f'<div style="background: #fef2f2; border-radius: 6px; padding: 10px 12px; border-left: 3px solid #ef4444;"><div style="font-size: 0.7rem; color: #dc2626; font-weight: 600;">FAILED</div><div style="font-size: 1.25rem; font-weight: 700; color: #b91c1c;">{failed}</div></div>'
             f'<div style="background: #fffbeb; border-radius: 6px; padding: 10px 12px; border-left: 3px solid #f59e0b;"><div style="font-size: 0.7rem; color: #d97706; font-weight: 600;">NOT FOUND</div><div style="font-size: 1.25rem; font-weight: 700; color: #b45309;">{not_found}</div></div>'
             "</div>"
-            '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 8px;">'
-            f'<div style="background: #ecfdf5; border-radius: 6px; padding: 10px 12px; border-left: 3px solid #10b981;">TDR Passed <strong>{tdr_p}</strong></div>'
-            f'<div style="background: #fef2f2; border-radius: 6px; padding: 10px 12px; border-left: 3px solid #ef4444;">TDR Failed <strong>{tdr_f}</strong></div>'
-            f'<div style="background: #fffbeb; border-radius: 6px; padding: 10px 12px; border-left: 3px solid #f59e0b;">TDR Partial <strong>{tdr_part}</strong></div>'
+            # Row 2: TDR (4 cards, aligned with BAN row)
+            '<div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 8px;">'
+            f'<div style="background: #f8fafc; border-radius: 6px; padding: 10px 12px; border-left: 3px solid #64748b;"><div style="font-size: 0.7rem; color: #64748b; font-weight: 600;">TOTAL TDR</div><div style="font-size: 1.25rem; font-weight: 700; color: #1e293b;">{total_tdr}</div></div>'
+            f'<div style="background: #ecfdf5; border-radius: 6px; padding: 10px 12px; border-left: 3px solid #10b981;"><div style="font-size: 0.7rem; color: #059669; font-weight: 600;">PASSED</div><div style="font-size: 1.25rem; font-weight: 700; color: #047857;">{tdr_p}</div></div>'
+            f'<div style="background: #fef2f2; border-radius: 6px; padding: 10px 12px; border-left: 3px solid #ef4444;"><div style="font-size: 0.7rem; color: #dc2626; font-weight: 600;">FAILED</div><div style="font-size: 1.25rem; font-weight: 700; color: #b91c1c;">{tdr_f}</div></div>'
+            f'<div style="background: #fffbeb; border-radius: 6px; padding: 10px 12px; border-left: 3px solid #f59e0b;"><div style="font-size: 0.7rem; color: #d97706; font-weight: 600;">PARTIAL</div><div style="font-size: 1.25rem; font-weight: 700; color: #b45309;">{tdr_part}</div></div>'
             "</div>"
             f'<div style="background: #f0fdfa; border-radius: 6px; padding: 10px 14px; border-left: 3px solid #0d9488;">📁 Per-TDR files: <strong>{per_tdr}</strong></div>',
             unsafe_allow_html=True,
