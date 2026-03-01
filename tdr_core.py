@@ -47,6 +47,7 @@ W = 56
 DEFAULT_TDR_EXCEL = os.path.join(BASE_FOLDER, "TDR Data.xlsx")
 DEFAULT_LVT_REPORT = os.path.join(BASE_FOLDER, "LVT_RUN_25Feb_Report.xlsx")
 LVT_SHEET_NAME = "BAN Wise Result"
+LVT_FAILURES_SHEET_NAME = "BAN Wise Failures"
 # Folder to scan for LVT Excel files (user picks file and optionally sheet)
 TDR_DELIVERY_FOLDER = os.path.join(BASE_FOLDER, "TDR deliver")
 
@@ -592,6 +593,87 @@ def _fill_tdr_info_status_column(tdr_ws, ban_to_status):
     return filled
 
 
+def _find_failures_header_row(ws, max_look=10):
+    """Find row with customer/BAN, description, and check_id. Returns (1-based row index, row values) or (None, None)."""
+    cust_kw = ("lgc_customer", "customer id", "customer", "ban", "bans", "account")
+    desc_kw = ("description", "failure", "desc")
+    check_kw = ("check_id", "check id", "checkid")
+    for r in range(1, min(ws.max_row + 1, max_look + 1)):
+        row_tuple = next(ws.iter_rows(min_row=r, max_row=r, values_only=True), None)
+        if not row_tuple:
+            continue
+        row_vals = list(row_tuple)
+        if (_find_column_index_in_row(row_vals, cust_kw) is not None and
+                _find_column_index_in_row(row_vals, desc_kw) is not None and
+                _find_column_index_in_row(row_vals, check_kw) is not None):
+            return (r, row_vals)
+    return (None, None)
+
+
+def _build_ban_to_failures_from_sheet(ws):
+    """Build dict BAN (str) -> list of (description, check_id) from BAN Wise Failures sheet."""
+    from collections import defaultdict
+    ban_to_failures = defaultdict(list)
+
+    cust_kw = ("lgc_customer", "customer id", "customer", "ban", "bans", "account")
+    desc_kw = ("description", "failure", "desc")
+    check_kw = ("check_id", "check id", "checkid")
+
+    header_row_idx, header_row_vals = _find_failures_header_row(ws)
+    if header_row_idx is None or not header_row_vals:
+        return dict(ban_to_failures)
+
+    cust_col = _find_column_index_in_row(header_row_vals, cust_kw)
+    desc_col = _find_column_index_in_row(header_row_vals, desc_kw)
+    check_col = _find_column_index_in_row(header_row_vals, check_kw)
+    if not all((cust_col, desc_col, check_col)):
+        return dict(ban_to_failures)
+
+    for row in ws.iter_rows(min_row=header_row_idx + 1, values_only=True):
+        if not row or len(row) < max(cust_col, desc_col, check_col):
+            continue
+        cust_val = row[cust_col - 1]
+        desc_val = row[desc_col - 1]
+        check_val = row[check_col - 1]
+        ban_strs = set()
+        if cust_val is not None:
+            s = str(cust_val).strip()
+            for m in BAN_PATTERN.finditer(s):
+                ban_strs.add(m.group(1))
+            if not ban_strs:
+                single = _normalize_ban(cust_val)
+                if single:
+                    ban_strs.add(single)
+        desc_str = (str(desc_val).strip() if desc_val is not None else "") or ""
+        if check_val is None:
+            check_str = ""
+        else:
+            s = str(check_val).strip()
+            check_str = str(int(float(check_val))) if s.replace(".", "").isdigit() else s
+        for ban_str in ban_strs:
+            ban_to_failures[ban_str].append((desc_str, check_str))
+
+    return dict(ban_to_failures)
+
+
+def _fill_tdr_info_failure_columns(tdr_ws, ban_to_failures):
+    """Fill columns D (Failure Description) and E (Check ID) in TDR Info by looking up BAN in ban_to_failures. Uses 'Not found' when no failures."""
+    tdr_ws.cell(row=1, column=4, value="Failure Description")
+    tdr_ws.cell(row=1, column=5, value="Check ID")
+    for r in range(2, tdr_ws.max_row + 1):
+        ban_cell = tdr_ws.cell(row=r, column=2).value
+        ban_str = _normalize_ban(ban_cell)
+        if not ban_str or ban_str not in ban_to_failures:
+            tdr_ws.cell(row=r, column=4, value="Not found")
+            tdr_ws.cell(row=r, column=5, value="Not found")
+            continue
+        pairs = ban_to_failures[ban_str]
+        descriptions = [p[0] for p in pairs if p[0]]
+        check_ids = [p[1] for p in pairs if p[1]]
+        tdr_ws.cell(row=r, column=4, value="; ".join(descriptions) if descriptions else "Not found")
+        tdr_ws.cell(row=r, column=5, value=", ".join(check_ids) if check_ids else "Not found")
+
+
 def _format_tdr_info_sheet(ws):
     """Apply formatting to TDR Info sheet: header style, column widths, status colors, borders."""
     thin_border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
@@ -600,7 +682,8 @@ def _format_tdr_info_sheet(ws):
     passed_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
     failed_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
     notfound_fill = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")
-    for col in range(1, 4):
+    num_cols = max(5, ws.max_column)
+    for col in range(1, num_cols + 1):
         c = ws.cell(row=1, column=col)
         c.fill = header_fill
         c.font = header_font
@@ -609,10 +692,13 @@ def _format_tdr_info_sheet(ws):
     ws.column_dimensions["A"].width = 18
     ws.column_dimensions["B"].width = 14
     ws.column_dimensions["C"].width = 14
+    ws.column_dimensions["D"].width = 48
+    ws.column_dimensions["E"].width = 14
     for r in range(2, ws.max_row + 1):
-        for col in range(1, 4):
+        for col in range(1, num_cols + 1):
             cell = ws.cell(row=r, column=col)
             cell.border = thin_border
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
             if col == 3:
                 val = (cell.value or "").strip().lower()
                 if val == "passed":
@@ -850,6 +936,7 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
         for row in all_rows:
             out_ws.append(list(row))  # Status filled in column C below
         ban_wise_ws = None
+        ban_to_failures = {}
         sheet_to_use = (lvt_sheet_name or LVT_SHEET_NAME) if lvt_report_path else None
         if lvt_report_path and os.path.isfile(lvt_report_path) and sheet_to_use:
             try:
@@ -857,6 +944,8 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
                 if sheet_to_use in lvt_wb.sheetnames:
                     _copy_sheet_into_workbook(lvt_wb[sheet_to_use], out_wb, sheet_to_use)
                     ban_wise_ws = out_wb[sheet_to_use]
+                if LVT_FAILURES_SHEET_NAME in lvt_wb.sheetnames:
+                    ban_to_failures = _build_ban_to_failures_from_sheet(lvt_wb[LVT_FAILURES_SHEET_NAME])
                 lvt_wb.close()
             except Exception:
                 pass
@@ -865,6 +954,7 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
         if ban_wise_ws is not None:
             ban_to_status = _build_ban_to_status_from_sheet(ban_wise_ws)
         _fill_tdr_info_status_column(out_ws, ban_to_status)
+        _fill_tdr_info_failure_columns(out_ws, ban_to_failures)
         for _tdr, ban in all_rows:
             ban_str = _normalize_ban(ban)
             status = ban_to_status.get(ban_str, "Not found") if ban_str else "Not found"
