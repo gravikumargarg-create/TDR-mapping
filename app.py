@@ -21,9 +21,7 @@ st.title("📊 TDR Data Excel")
 st.markdown("Upload your **TDR Data** sheet and optional **LVT report**. Get the main report and one Excel per TDR (same as the local script).")
 
 tdr_file = st.file_uploader("TDR Data Excel (required)", type=["xlsx", "xlsm"], help="Excel file with TDR sections")
-lvt_file = st.file_uploader("LVT Report Excel (optional)", type=["xlsx", "xlsm"], help="For BAN status column; if omitted, status will be 'Not found'")
-
-# When TDR file is uploaded, read sheet names and show dropdown
+# TDR sheet dropdown: right below TDR upload only
 tdr_sheet = None
 if tdr_file and tdr_file.size > 0:
     try:
@@ -45,7 +43,8 @@ if tdr_file and tdr_file.size > 0:
 else:
     st.caption("Upload a TDR Data Excel file to choose which sheet to use.")
 
-# When LVT is uploaded, read sheet names and show dropdown; otherwise no sheet choice needed
+lvt_file = st.file_uploader("LVT Report Excel (optional)", type=["xlsx", "xlsm"], help="For BAN status column; if omitted, status will be 'Not found'")
+# LVT sheet dropdown: right below LVT upload only
 lvt_sheet = None
 if lvt_file and lvt_file.size > 0:
     try:
@@ -119,12 +118,14 @@ if run and tdr_file:
                                 z.write(os.path.join(per_tdr_folder, n), n)
                         buf.seek(0)
                         zip_bytes = buf.getvalue()
+                lvt_used = bool(lvt_file and lvt_file.size > 0)
                 st.session_state["tdr_result"] = {
                     "report_bytes": report_bytes,
                     "report_filename": report_filename,
                     "zip_bytes": zip_bytes,
                     "zip_filename": zip_filename,
                     "summary": summary,
+                    "lvt_used": lvt_used,
                 }
             else:
                 st.error("No TDR data found in the sheet or report generation failed.")
@@ -143,17 +144,18 @@ elif run and not tdr_file:
 if "tdr_result" in st.session_state:
     r = st.session_state["tdr_result"]
     st.success("Done. Download your files below.")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.download_button(
-            "Download main report",
-            data=r["report_bytes"],
-            file_name=r["report_filename"],
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="download_main_report",
-        )
-    with col2:
-        if r.get("zip_bytes"):
+    show_zip = r.get("lvt_used", True) and r.get("zip_bytes")  # hide ZIP when run was without LVT
+    if show_zip:
+        col1, col2 = st.columns(2)
+        with col1:
+            st.download_button(
+                "Download main report",
+                data=r["report_bytes"],
+                file_name=r["report_filename"],
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="download_main_report",
+            )
+        with col2:
             st.download_button(
                 "Download per-TDR files (ZIP)",
                 data=r["zip_bytes"],
@@ -161,7 +163,22 @@ if "tdr_result" in st.session_state:
                 mime="application/zip",
                 key="download_per_tdr_zip",
             )
+    else:
+        st.download_button(
+            "Download main report",
+            data=r["report_bytes"],
+            file_name=r["report_filename"],
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="download_main_report",
+        )
+        if not r.get("lvt_used", True):
+            st.caption("Upload an LVT report and run again to get per-TDR files (ZIP).")
         else:
             st.caption("No per-TDR files generated.")
+    # Summary in user-readable format (no raw JSON)
     if r.get("summary"):
-        st.json(r["summary"])
+        s = r["summary"]
+        st.markdown("**Summary**")
+        st.markdown(f"- **Total BANs:** {s.get('total', 0)} — Passed: {s.get('passed', 0)}, Failed: {s.get('failed', 0)}, Not found: {s.get('not_found', 0)}")
+        st.markdown(f"- **TDR-wise:** Passed: {s.get('tdr_passed', 0)}, Failed: {s.get('tdr_failed', 0)}, Partial: {s.get('tdr_partial', 0)}")
+        st.markdown(f"- **Per-TDR files:** {s.get('per_tdr_count', 0)}")
