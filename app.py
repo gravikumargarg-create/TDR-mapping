@@ -21,7 +21,31 @@ st.markdown("Upload your **TDR Data** sheet and optional **LVT report**. Get the
 
 tdr_file = st.file_uploader("TDR Data Excel (required)", type=["xlsx", "xlsm"], help="Excel file with TDR sections")
 lvt_file = st.file_uploader("LVT Report Excel (optional)", type=["xlsx", "xlsm"], help="For BAN status column; if omitted, status will be 'Not found'")
-lvt_sheet = st.text_input("LVT sheet name for BAN-wise list (optional)", value="BAN Wise Result", help="Default: BAN Wise Result")
+
+# When LVT is uploaded, read sheet names and show dropdown; otherwise no sheet choice needed
+lvt_sheet = None
+if lvt_file and lvt_file.size > 0:
+    try:
+        wb_lvt = tdr_core.load_workbook(BytesIO(lvt_file.getvalue()), read_only=True)
+        lvt_sheet_names = wb_lvt.sheetnames
+        wb_lvt.close()
+        if lvt_sheet_names:
+            default_idx = 0
+            if tdr_core.LVT_SHEET_NAME in lvt_sheet_names:
+                default_idx = lvt_sheet_names.index(tdr_core.LVT_SHEET_NAME)
+            lvt_sheet = st.selectbox(
+                "LVT sheet for BAN-wise list",
+                options=lvt_sheet_names,
+                index=default_idx,
+                help="Sheet in the LVT report that contains the BAN-wise list (default: BAN Wise Result if present)",
+            )
+        else:
+            st.caption("LVT file has no sheets.")
+    except Exception as e:
+        st.warning(f"Could not read LVT file sheets: {e}. Using default sheet name.")
+        lvt_sheet = st.text_input("LVT sheet name (fallback)", value=tdr_core.LVT_SHEET_NAME)
+else:
+    st.caption("Upload an LVT report to choose which sheet to use for the BAN-wise list.")
 
 run = st.button("Run TDR")
 
