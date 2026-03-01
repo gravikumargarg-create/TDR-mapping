@@ -20,12 +20,14 @@ The TDR Mapping Sheet Creation tool:
 
 ## 2. How to Access
 
-- **Streamlit Cloud (recommended):** Use the shared app URL (e.g. from your team or deployment).
-- **Local run:**  
-  `cd TDR-mapping`  
-  `pip install -r requirements.txt`  
-  `streamlit run app.py`  
-  Then open the URL shown in the terminal (e.g. http://localhost:8501).
+The tool runs on **Streamlit Cloud**. No local installation required.
+
+**App URL:**  
+**https://tdr-streamlit-sharepoint.streamlit.app**
+
+*(Use the URL above, or the URL shared by your team if different.)*
+
+- Open the URL in a browser to use the app.
 
 ---
 

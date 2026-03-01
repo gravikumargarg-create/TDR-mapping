@@ -43,12 +43,12 @@ def main():
     doc.add_paragraph()
 
     doc.add_heading("2. How to Access", level=1)
-    doc.add_paragraph("• Streamlit Cloud (recommended): Use the shared app URL (e.g. from your team or deployment).")
-    doc.add_paragraph("• Local run:")
-    doc.add_paragraph("  cd TDR-mapping", style="List Bullet")
-    doc.add_paragraph("  pip install -r requirements.txt", style="List Bullet")
-    doc.add_paragraph("  streamlit run app.py", style="List Bullet")
-    doc.add_paragraph("  Then open the URL shown in the terminal (e.g. http://localhost:8501).")
+    doc.add_paragraph("The tool runs on Streamlit Cloud. No local installation required.")
+    doc.add_paragraph()
+    add_para(doc, "App URL:", bold=True)
+    doc.add_paragraph("https://tdr-streamlit-sharepoint.streamlit.app")
+    doc.add_paragraph("(Use the URL above, or the URL shared by your team if different.)")
+    doc.add_paragraph("• Open the URL in a browser to use the app.")
     doc.add_paragraph()
 
     doc.add_heading("3. Prerequisites", level=1)
