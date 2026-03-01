@@ -18,21 +18,38 @@ import tdr_core
 
 st.set_page_config(page_title="TDR mapping sheet creation", page_icon="📋", layout="centered")
 
+# Custom CSS: richer UI, more spacing, styled blocks
+st.markdown(
+    """
+    <style>
+    .block-container { padding-top: 2rem !important; padding-bottom: 3rem !important; max-width: 900px !important; }
+    div[data-testid="stVerticalBlock"] > div { padding: 0.4rem 0 !important; }
+    .stSelectbox > div { border-radius: 10px !important; padding: 4px 0 !important; }
+    section[data-testid="stFileUploader"] { background: linear-gradient(180deg, #fafbfc 0%, #f1f5f9 100%) !important; border-radius: 12px !important; padding: 20px !important; border: 1px solid #e2e8f0 !important; }
+    .stButton > button { border-radius: 10px !important; padding: 0.5rem 1.5rem !important; font-weight: 600 !important; transition: all 0.2s !important; }
+    .stButton > button:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important; }
+    div[data-testid="stDownloadButton"] > button { border-radius: 10px !important; font-weight: 500 !important; }
+    [data-testid="stAlert"] { border-radius: 10px !important; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 # Attractive header and description
 st.markdown(
     """
     <div style="
-        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
-        border-radius: 12px;
-        padding: 24px 28px;
-        margin-bottom: 24px;
-        border-left: 5px solid #2563eb;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 40%, #bfdbfe 100%);
+        border-radius: 16px;
+        padding: 28px 32px;
+        margin-bottom: 32px;
+        border-left: 6px solid #2563eb;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.12);
     ">
-        <p style="margin: 0 0 8px 0; font-size: 1.75rem; font-weight: 700; color: #1e293b; letter-spacing: -0.02em;">
+        <p style="margin: 0 0 10px 0; font-size: 1.85rem; font-weight: 700; color: #1e3a8a; letter-spacing: -0.02em;">
             📋 TDR mapping sheet creation
         </p>
-        <p style="margin: 0; font-size: 0.95rem; line-height: 1.5; color: #475569;">
+        <p style="margin: 0; font-size: 1rem; line-height: 1.6; color: #1e40af;">
             Upload your <strong>TDR data sheet</strong> and <strong>LVT report</strong> (both required). 
             The script will create a detailed mapping and TDR-wise report for further use.
         </p>
@@ -41,7 +58,14 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# ----- Section 1: TDR Data -----
+st.markdown(
+    '<div style="margin-bottom: 8px; font-size: 1rem; font-weight: 600; color: #334155;">📄 Step 1 — TDR Data</div>',
+    unsafe_allow_html=True,
+)
+st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 tdr_file = st.file_uploader("TDR Data Excel (required)", type=["xlsx", "xlsm"], help="Excel file with TDR sections")
+st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
 # TDR sheet dropdown: right below TDR upload only
 tdr_sheet = None
 if tdr_file and tdr_file.size > 0:
@@ -64,7 +88,15 @@ if tdr_file and tdr_file.size > 0:
 else:
     st.caption("Upload a TDR Data Excel file to choose which sheet to use.")
 
+st.markdown("<div style='height: 32px;'></div>", unsafe_allow_html=True)
+# ----- Section 2: LVT Report -----
+st.markdown(
+    '<div style="margin-bottom: 8px; font-size: 1rem; font-weight: 600; color: #334155;">📊 Step 2 — LVT Report</div>',
+    unsafe_allow_html=True,
+)
+st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 lvt_file = st.file_uploader("LVT Report Excel (required)", type=["xlsx", "xlsm"], help="BAN-wise list; required for mapping and status")
+st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
 # LVT sheet dropdown: right below LVT upload only
 lvt_sheet = None
 if lvt_file and lvt_file.size > 0:
@@ -91,7 +123,15 @@ if lvt_file and lvt_file.size > 0:
 else:
     st.caption("Required. Upload an LVT report and choose which sheet to use for the BAN-wise list.")
 
-run = st.button("Run TDR")
+st.markdown("<div style='height: 40px;'></div>", unsafe_allow_html=True)
+st.markdown(
+    '<div style="background: #f8fafc; border-radius: 12px; padding: 20px 24px; border: 1px solid #e2e8f0;">'
+    '<p style="margin: 0 0 12px 0; font-size: 0.9rem; font-weight: 600; color: #475569;">Run the report</p>'
+    '</div>',
+    unsafe_allow_html=True,
+)
+st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+run = st.button("Run TDR", type="primary")
 
 if run and not tdr_file:
     st.warning("Please upload **TDR Data Excel** (required).")
@@ -163,7 +203,13 @@ elif run and tdr_file and lvt_file and lvt_file.size > 0:
 # Show download section from session state so both buttons stay visible after clicking either one
 if "tdr_result" in st.session_state:
     r = st.session_state["tdr_result"]
-    st.success("Done. Download your files below.")
+    st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+    st.markdown(
+        '<div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; border-left: 4px solid #10b981;">'
+        '<span style="font-size: 1rem; font-weight: 600; color: #065f46;">✓ Done. Download your files below.</span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
     show_zip = r.get("lvt_used", True) and r.get("zip_bytes")  # hide ZIP when run was without LVT
     if show_zip:
         col1, col2 = st.columns(2)
@@ -195,6 +241,7 @@ if "tdr_result" in st.session_state:
             st.caption("Upload an LVT report and run again to get per-TDR files (ZIP).")
         else:
             st.caption("No per-TDR files generated.")
+    st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
     # Summary: rich, colored dashboard-style layout
     if r.get("summary"):
         s = r["summary"]
