@@ -47,7 +47,24 @@ W = 56
 DEFAULT_TDR_EXCEL = os.path.join(BASE_FOLDER, "TDR Data.xlsx")
 DEFAULT_LVT_REPORT = os.path.join(BASE_FOLDER, "LVT_RUN_25Feb_Report.xlsx")
 LVT_SHEET_NAME = "BAN Wise Result"
-LVT_FAILURES_SHEET_NAME = "BAN Wise Failures"
+# Failures sheet: match any variation of "BAN Wise Failures" (spaces, underscores, case)
+LVT_FAILURES_SHEET_NORMALIZED = "banwisefailures"
+
+
+def _normalize_sheet_name(name):
+    """Return name with spaces/underscores removed and lowercased for matching."""
+    if not name:
+        return ""
+    return "".join(c for c in str(name).lower().strip() if c not in " \t_")
+
+
+def _find_failures_sheet_in_workbook(wb):
+    """Return the first sheet name in wb that normalizes to BAN Wise Failures, or None."""
+    target = _normalize_sheet_name(LVT_FAILURES_SHEET_NORMALIZED)
+    for sheet_name in wb.sheetnames:
+        if _normalize_sheet_name(sheet_name) == target:
+            return sheet_name
+    return None
 # Folder to scan for LVT Excel files (user picks file and optionally sheet)
 TDR_DELIVERY_FOLDER = os.path.join(BASE_FOLDER, "TDR deliver")
 
@@ -944,8 +961,9 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
                 if sheet_to_use in lvt_wb.sheetnames:
                     _copy_sheet_into_workbook(lvt_wb[sheet_to_use], out_wb, sheet_to_use)
                     ban_wise_ws = out_wb[sheet_to_use]
-                if LVT_FAILURES_SHEET_NAME in lvt_wb.sheetnames:
-                    ban_to_failures = _build_ban_to_failures_from_sheet(lvt_wb[LVT_FAILURES_SHEET_NAME])
+                failures_sheet_name = _find_failures_sheet_in_workbook(lvt_wb)
+                if failures_sheet_name is not None:
+                    ban_to_failures = _build_ban_to_failures_from_sheet(lvt_wb[failures_sheet_name])
                 lvt_wb.close()
             except Exception:
                 pass
