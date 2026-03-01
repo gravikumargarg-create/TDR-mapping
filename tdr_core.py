@@ -17,7 +17,7 @@ try:
     import openpyxl
     from openpyxl import load_workbook, Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
+    from openpyxl.utils import get_column_letter
 except ImportError:
     print("openpyxl is required. Install with: pip install openpyxl")
     sys.exit(1)
