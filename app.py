@@ -181,6 +181,15 @@ with col_lvt:
     else:
         st.caption("Upload file to pick sheet.")
 
+st.markdown("**Device Details (optional)**")
+device_file = st.file_uploader(
+    "Device Details Excel",
+    type=["xlsx", "xlsm"],
+    key="device_upload",
+    help="Excel with CUSTOMER_ID and device columns (MSISDN, IMEI, ESN, EID, etc.). Adds a 'Device Details' sheet to each TDR-wise file for matching BANs.",
+)
+st.caption("If provided, each TDR-wise Excel will get a 'Device Details' sheet with rows for that TDR's BANs/Customer IDs.")
+
 st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
 run = st.button("Run TDR", type="primary")
 
@@ -203,6 +212,11 @@ elif run and tdr_bytes and tdr_sheet and lvt_file and lvt_file.size > 0:
             lvt_path = os.path.join(tmpdir, "lvt_input.xlsx")
             with open(lvt_path, "wb") as f:
                 f.write(lvt_file.getvalue())
+            device_details_path = None
+            if device_file and device_file.size > 0:
+                device_details_path = os.path.join(tmpdir, "device_details.xlsx")
+                with open(device_details_path, "wb") as f:
+                    f.write(device_file.getvalue())
             sheet_to_use = (lvt_sheet or tdr_core.LVT_SHEET_NAME).strip() or tdr_core.LVT_SHEET_NAME
             out_path = os.path.join(tmpdir, "TDR_BAN_Report.xlsx")
 
@@ -212,6 +226,7 @@ elif run and tdr_bytes and tdr_sheet and lvt_file and lvt_file.size > 0:
                     output_excel=out_path,
                     lvt_report_path=lvt_path,
                     lvt_sheet_name=sheet_to_use if lvt_path else None,
+                    device_details_path=device_details_path,
                 )
 
             if result_path and os.path.isfile(result_path):

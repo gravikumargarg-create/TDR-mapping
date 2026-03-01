@@ -512,6 +512,118 @@ def _copy_sheet_into_workbook(src_ws, dest_wb, sheet_name):
     return dest_ws
 
 
+# Device Details sheet: columns to store as text to avoid long-number truncation/scientific notation
+DEVICE_DETAILS_SHEET_NAME = "Device Details"
+DEVICE_DETAILS_CUSTOMER_ID_HEADERS = ("customer_id", "customer id", "ban", "bans", "lgc_customer id")
+DEVICE_DETAILS_TEXT_COLUMNS = (
+    "customer_id", "customer id", "msisdn", "imei", "esn", "eid", "uiccid", "uimsi", "timsi",
+    "device_model", "device_lock_status",
+)
+
+
+def _load_device_details(path, sheet_name=None):
+    """
+    Load device details Excel. Returns (headers, list of row lists, customer_id_col_1based) or None.
+    Uses first sheet with CUSTOMER_ID (or similar) in header if sheet_name not given.
+    """
+    if not path or not os.path.isfile(path):
+        return None
+    try:
+        wb = load_workbook(path, read_only=True, data_only=True)
+        sheet_to_use = sheet_name
+        if not sheet_to_use:
+            for name in wb.sheetnames:
+                ws = wb[name]
+                first_row = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), None)
+                if first_row and _find_column_index_in_row(list(first_row), DEVICE_DETAILS_CUSTOMER_ID_HEADERS):
+                    sheet_to_use = name
+                    break
+        if not sheet_to_use:
+            wb.close()
+            return None
+        ws = wb[sheet_to_use]
+        rows = list(ws.iter_rows(values_only=True))
+        wb.close()
+        if not rows:
+            return None
+        headers = [str(h).strip() if h is not None else "" for h in rows[0]]
+        cust_col = _find_column_index_in_row(headers, DEVICE_DETAILS_CUSTOMER_ID_HEADERS)
+        if cust_col is None:
+            cust_col = 1
+        return (headers, rows[1:], cust_col)
+    except Exception:
+        return None
+
+
+def _add_device_details_sheet_to_workbook(wb, device_data, bans_set):
+    """
+    Add sheet 'Device Details' to wb with rows from device_data where CUSTOMER_ID is in bans_set.
+    device_data = (headers, list of row tuples, customer_id_col_1based).
+    Format long-number columns as text (@) to avoid scattering/truncation.
+    """
+    if not device_data or not bans_set:
+        return
+    headers, rows, cust_col = device_data
+    cust_idx = cust_col - 1
+    # Normalize BANs for match
+    bans_normalized = set()
+    for b in bans_set:
+        n = _normalize_ban(b)
+        if n:
+            bans_normalized.add(n)
+        if isinstance(b, str):
+            bans_normalized.add(b.strip())
+        else:
+            bans_normalized.add(str(b).strip())
+    matching = []
+    for row in rows:
+        if not row or len(row) <= cust_idx:
+            continue
+        val = row[cust_idx]
+        n = _normalize_ban(val)
+        if n and n in bans_normalized:
+            matching.append(row)
+            continue
+        s = (str(val).strip() if val is not None else "")
+        if s in bans_normalized:
+            matching.append(row)
+    # Create sheet
+    ws = wb.create_sheet(title=DEVICE_DETAILS_SHEET_NAME[:31])
+    header_row = list(headers)
+    ws.append(header_row)
+    for row in matching:
+        # Write as strings for long-number columns to avoid Excel reformatting
+        out = []
+        for i, v in enumerate(row):
+            if i >= len(header_row):
+                out.append(v)
+                continue
+            h = (header_row[i] or "").lower().replace(" ", "_")
+            if any(t in h for t in ("customer_id", "msisdn", "imei", "esn", "eid", "uiccid", "uimsi", "timsi")):
+                out.append(str(v) if v is not None else "")
+            else:
+                out.append(v)
+        ws.append(out)
+    # Set text format for long-number columns
+    for col_idx, h in enumerate(header_row, 1):
+        hl = (h or "").lower().replace(" ", "_")
+        if any(t in hl for t in ("customer_id", "msisdn", "imei", "esn", "eid", "uiccid", "uimsi", "timsi")):
+            for r in range(2, ws.max_row + 1):
+                ws.cell(row=r, column=col_idx).number_format = "@"
+    # Header styling
+    thin_border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
+    header_fill = PatternFill(start_color="2F5496", end_color="2F5496", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    for col in range(1, len(header_row) + 1):
+        c = ws.cell(row=1, column=col)
+        c.fill = header_fill
+        c.font = header_font
+        c.border = thin_border
+    for r in range(2, ws.max_row + 1):
+        for col in range(1, len(header_row) + 1):
+            ws.cell(row=r, column=col).border = thin_border
+
+
 def _normalize_ban(value):
     """Return 9-digit BAN as string, or None if not a valid BAN."""
     if value is None:
@@ -922,11 +1034,12 @@ def _format_tdr_per_sheet_wide(ws):
     ws.freeze_panes = "A2"
 
 
-def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=None, lvt_sheet_name=None):
+def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=None, lvt_sheet_name=None, device_details_path=None, device_details_sheet_name=None):
     """
     For each (file, sheets) in all_sources, extract TDR→BAN mapping and print.
     Saves one Excel with TDR Info sheet + TDR Summary when output_excel is set (Status/failures filled from LVT; BAN Wise Result sheet not copied).
     lvt_sheet_name: sheet to use in LVT workbook for BAN-wise list; defaults to LVT_SHEET_NAME if None.
+    device_details_path: optional Excel with CUSTOMER_ID and device columns; adds "Device Details" sheet to each TDR-wise Excel for matching BANs.
     """
     wb = None
     all_rows = []
@@ -965,6 +1078,23 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
         if wb:
             wb.close()
             wb = None
+
+    # Add "Device Details" sheet to each TDR-wise Excel if user provided device details file
+    if all_rows and device_details_path and os.path.isfile(device_details_path):
+        device_data = _load_device_details(device_details_path, device_details_sheet_name)
+        if device_data:
+            for tdr_id in sorted(set(t for t, _ in all_rows)):
+                path = os.path.join(tdr_excel_folder, _safe_tdr_filename(tdr_id))
+                if not os.path.isfile(path):
+                    continue
+                try:
+                    wb = load_workbook(path, read_only=False)
+                    bans_for_tdr = {ban for t, ban in all_rows if t == tdr_id}
+                    _add_device_details_sheet_to_workbook(wb, device_data, bans_for_tdr)
+                    wb.save(path)
+                    wb.close()
+                except (PermissionError, Exception):
+                    pass
 
     # Single Excel: TDR Info sheet + TDR Summary only (no BAN Wise Result copy; Status filled from LVT)
     if output_excel and all_rows:
