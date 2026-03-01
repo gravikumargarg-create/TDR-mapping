@@ -108,7 +108,7 @@ if run and tdr_file:
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                 report_filename = f"TDR_BAN_Report_{ts}.xlsx"
                 zip_bytes = None
-                zip_filename = f"TDR_per_TDR_files_{ts}.zip"
+                zip_filename = "TDR_per_TDR_files.zip"
                 per_tdr_folder = (summary or {}).get("per_tdr_folder")
                 if per_tdr_folder and os.path.isdir(per_tdr_folder):
                     files = [n for n in os.listdir(per_tdr_folder) if n.endswith((".xlsx", ".xlsm"))]
