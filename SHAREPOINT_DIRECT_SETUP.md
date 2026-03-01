@@ -82,6 +82,25 @@ Otherwise, **Sites.Read.All** with admin consent is often enough for the app to 
 
 ---
 
+## Setting Secrets in Streamlit Cloud
+
+In your Streamlit Cloud app:
+
+1. Open the app → **Settings** (⚙️) → **Secrets**.
+2. Add these three keys (values from Azure/Entra):
+
+```toml
+AZURE_TENANT_ID = "your-directory-tenant-id"
+AZURE_CLIENT_ID = "your-application-client-id"
+AZURE_CLIENT_SECRET = "your-client-secret-value"
+```
+
+3. Save. The app will use them only when **TDR file from** is **SharePoint**; then you’ll see a dropdown to pick a file directly from the R2 Data folder (no download-then-upload).
+
+**Important:** Never commit the client secret to Git. Use only Streamlit secrets or environment variables.
+
+---
+
 ## What to Give the TDR App / Developer
 
 Share these **three** values (securely, e.g. over a secure channel or password manager):

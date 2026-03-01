@@ -12,9 +12,10 @@ from io import BytesIO
 
 import streamlit as st
 
-# Ensure we can import tdr_core from this folder
+# Ensure we can import tdr_core and sharepoint_graph from this folder
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import tdr_core
+import sharepoint_graph
 
 st.set_page_config(page_title="TDR mapping sheet creation", page_icon="📋", layout="centered")
 
@@ -70,6 +71,11 @@ TDR_SHAREPOINT_URL = (
 # Two columns: TDR (left) and LVT (right)
 col_tdr, col_lvt = st.columns(2)
 
+# Unified TDR input: bytes + name + sheet (from upload or from SharePoint direct)
+tdr_bytes = None
+tdr_name = None
+tdr_sheet = None
+
 with col_tdr:
     st.markdown("**TDR Data**")
     tdr_source = st.radio(
@@ -77,35 +83,81 @@ with col_tdr:
         options=["Local file", "SharePoint"],
         horizontal=True,
         key="tdr_source",
-        help="Choose local upload or download from SharePoint then upload",
+        help="Local upload or pick a file directly from SharePoint (if configured)",
     )
-    if tdr_source == "SharePoint":
+    use_sharepoint_direct = tdr_source == "SharePoint" and sharepoint_graph.has_sharepoint_credentials()
+
+    if tdr_source == "SharePoint" and not use_sharepoint_direct:
         st.markdown(
             f'<a href="{TDR_SHAREPOINT_URL}" target="_blank" rel="noopener" '
             'style="font-size: 0.85rem; color: #0d9488;">📂 Open TDR folder on SharePoint</a>',
             unsafe_allow_html=True,
         )
-        st.caption("Download the TDR file from SharePoint, then upload it below.")
-    tdr_file = st.file_uploader(
-        "TDR Excel (required)",
-        type=["xlsx", "xlsm"],
-        help="TDR sections" if tdr_source == "Local file" else "Upload the file you downloaded from SharePoint",
-        key="tdr_upload",
-    )
-    tdr_sheet = None
-    if tdr_file and tdr_file.size > 0:
-        try:
-            wb_tdr = tdr_core.load_workbook(BytesIO(tdr_file.getvalue()), read_only=True)
-            tdr_sheet_names = wb_tdr.sheetnames
-            wb_tdr.close()
-            if tdr_sheet_names:
-                tdr_sheet = st.selectbox("Sheet", options=tdr_sheet_names, index=0, key="tdr_sheet")
+        st.caption("Download the TDR file from SharePoint, then upload it below. Or set app secrets for direct pick.")
+
+    if use_sharepoint_direct:
+        token = sharepoint_graph.get_token()
+        if not token:
+            st.warning("Could not get SharePoint token. Check AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET in secrets.")
+        else:
+            files = sharepoint_graph.list_tdr_excel_files(token)
+            if not files:
+                st.info("No Excel files found in the TDR folder.")
             else:
-                st.caption("No sheets.")
-        except Exception as e:
-            st.warning(str(e))
+                selected_name = st.selectbox(
+                    "TDR file (SharePoint)",
+                    options=[f["name"] for f in files],
+                    key="sp_tdr_file",
+                    help="Pick a file from the R2 Data folder",
+                )
+                selected = next((f for f in files if f["name"] == selected_name), None)
+                if selected:
+                    cache_key = f"sp_tdr_{selected['id']}"
+                    if cache_key not in st.session_state:
+                        with st.spinner("Loading file…"):
+                            content = sharepoint_graph.download_file_content(
+                                token, selected["drive_id"], selected["id"]
+                            )
+                        if content:
+                            st.session_state[cache_key] = content
+                    content = st.session_state.get(cache_key) if cache_key in st.session_state else None
+                    if content:
+                        tdr_bytes = content
+                        tdr_name = selected["name"]
+                        try:
+                            wb_tdr = tdr_core.load_workbook(BytesIO(content), read_only=True)
+                            tdr_sheet_names = wb_tdr.sheetnames
+                            wb_tdr.close()
+                            if tdr_sheet_names:
+                                tdr_sheet = st.selectbox("Sheet", options=tdr_sheet_names, index=0, key="tdr_sheet")
+                            else:
+                                st.caption("No sheets.")
+                        except Exception as e:
+                            st.warning(str(e))
+                    else:
+                        st.warning("Could not download file.")
     else:
-        st.caption("Upload file to pick sheet.")
+        tdr_file = st.file_uploader(
+            "TDR Excel (required)",
+            type=["xlsx", "xlsm"],
+            help="TDR sections" if tdr_source == "Local file" else "Upload the file you downloaded from SharePoint",
+            key="tdr_upload",
+        )
+        if tdr_file and tdr_file.size > 0:
+            tdr_bytes = tdr_file.getvalue()
+            tdr_name = tdr_file.name
+            try:
+                wb_tdr = tdr_core.load_workbook(BytesIO(tdr_bytes), read_only=True)
+                tdr_sheet_names = wb_tdr.sheetnames
+                wb_tdr.close()
+                if tdr_sheet_names:
+                    tdr_sheet = st.selectbox("Sheet", options=tdr_sheet_names, index=0, key="tdr_sheet")
+                else:
+                    st.caption("No sheets.")
+            except Exception as e:
+                st.warning(str(e))
+        else:
+            st.caption("Upload file to pick sheet." if tdr_source == "Local file" else "Upload file or set secrets for direct pick.")
 
 with col_lvt:
     st.markdown("**LVT Report**")
@@ -130,19 +182,18 @@ with col_lvt:
 st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
 run = st.button("Run TDR", type="primary")
 
-if run and not tdr_file:
-    st.warning("Please upload **TDR Data Excel** (required).")
+if run and not tdr_bytes:
+    st.warning("Please provide **TDR Data** (upload or pick from SharePoint).")
 elif run and (not lvt_file or lvt_file.size == 0):
     st.warning("Please upload **LVT Report Excel** (required).")
-elif run and tdr_file and lvt_file and lvt_file.size > 0:
+elif run and tdr_bytes and tdr_sheet and lvt_file and lvt_file.size > 0:
     tmpdir = tempfile.mkdtemp(prefix="tdr_streamlit_")
     try:
         os.environ["TDR_WEB_REPORT_FOLDER"] = tmpdir
         tdr_path = os.path.join(tmpdir, "tdr_input.xlsx")
         with open(tdr_path, "wb") as f:
-            f.write(tdr_file.getvalue())
+            f.write(tdr_bytes)
 
-        # Use the sheet selected from dropdown (tdr_sheet set when TDR file was uploaded)
         sheet_name = tdr_sheet
         if not sheet_name:
             st.error("Please select a TDR Data sheet (re-upload the file if the dropdown did not appear).")

@@ -36,6 +36,16 @@ On your dashboard (e.g. QE Tools), add a link that opens the Streamlit app in a 
 Example: in the TDR Data Excel tab you can add:  
 *"Or use the free web version: [Open TDR tool](https://your-app-name.streamlit.app)"*
 
+## Revert to state before direct SharePoint
+
+If direct SharePoint integration causes issues, revert to link + upload only:
+
+```bash
+git checkout before-sharepoint-direct -- app.py
+git commit -m "Revert to link + upload only"
+git push origin main
+```
+
 ## Notes
 
 - Your **local** `tdr_excel_script.py` (in the project root) is **not** changed. This app uses the **copy** in `streamlit_tdr/tdr_core.py`.
