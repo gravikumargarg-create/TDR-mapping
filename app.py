@@ -23,9 +23,10 @@ st.markdown(
     """
     <style>
     .stApp { background: #f1f5f9 !important; }
-    .block-container { padding: 0.4rem 1.5rem 1.5rem !important; max-width: 880px !important; }
+    .block-container { padding: 0.25rem 1.5rem 1.5rem !important; max-width: 880px !important; }
     div[data-testid="stVerticalBlock"] > div { padding: 0.15rem 0 !important; }
-    [data-testid="stAppViewContainer"] > section { padding-top: 0.5rem !important; }
+    [data-testid="stAppViewContainer"] > section { padding-top: 0 !important; }
+    header[data-testid="stHeader"] { padding-top: 0 !important; }
     section[data-testid="stFileUploader"] {
         background: #fff !important; border-radius: 8px !important; padding: 14px !important;
         border: 1px solid #e2e8f0 !important; border-top: 3px solid #0d9488 !important;
@@ -45,17 +46,17 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# New header: teal bar, white text, centered
+# New header: teal bar, centered - compact so fully visible (no cut-off on small screens)
 st.markdown(
     """
     <div style="
         background: linear-gradient(90deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%);
-        color: #fff; padding: 14px 18px; border-radius: 10px; margin-bottom: 16px;
+        color: #fff; padding: 12px 16px; border-radius: 10px; margin-bottom: 12px;
         box-shadow: 0 2px 8px rgba(15, 118, 110, 0.3);
         text-align: center;
     ">
-        <div style="font-size: 1.35rem; font-weight: 700; margin-bottom: 4px;">TDR mapping sheet creation</div>
-        <div style="font-size: 0.8rem; opacity: 0.95;">Upload TDR data + LVT report (both required) → get mapping and TDR-wise reports.</div>
+        <div style="font-size: 1.25rem; font-weight: 700; margin-bottom: 2px;">TDR mapping sheet creation</div>
+        <div style="font-size: 0.75rem; opacity: 0.95;">Upload TDR data + LVT report (both required) → get mapping and TDR-wise reports.</div>
     </div>
     """,
     unsafe_allow_html=True,
