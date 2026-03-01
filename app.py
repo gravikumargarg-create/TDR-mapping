@@ -200,9 +200,9 @@ elif run and tdr_bytes and tdr_sheet and lvt_file and lvt_file.size > 0:
         if not sheet_name:
             st.error("Please select a TDR Data sheet (re-upload the file if the dropdown did not appear).")
         else:
-                lvt_path = os.path.join(tmpdir, "lvt_input.xlsx")
-                with open(lvt_path, "wb") as f:
-                    f.write(lvt_file.getvalue())
+            lvt_path = os.path.join(tmpdir, "lvt_input.xlsx")
+            with open(lvt_path, "wb") as f:
+                f.write(lvt_file.getvalue())
             sheet_to_use = (lvt_sheet or tdr_core.LVT_SHEET_NAME).strip() or tdr_core.LVT_SHEET_NAME
             out_path = os.path.join(tmpdir, "TDR_BAN_Report.xlsx")
 
