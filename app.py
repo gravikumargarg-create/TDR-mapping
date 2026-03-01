@@ -68,33 +68,40 @@ TDR_SHAREPOINT_URL = (
     "?csf=1&web=1&e=EZDfgA"
 )
 
-# Two columns: TDR (left) and LVT (right)
-col_tdr, col_lvt = st.columns(2)
-
 # Unified TDR input: bytes + name + sheet (from upload or from SharePoint direct)
 tdr_bytes = None
 tdr_name = None
 tdr_sheet = None
 
-with col_tdr:
+# Row 1: Section headers side by side
+col_h1, col_h2 = st.columns(2)
+with col_h1:
     st.markdown("**TDR Data**")
-    tdr_source = st.radio(
-        "TDR file from",
-        options=["Local file", "SharePoint"],
-        horizontal=True,
-        key="tdr_source",
-        help="Local upload or pick a file directly from SharePoint (if configured)",
+with col_h2:
+    st.markdown("**LVT Report**")
+
+# Row 2: TDR source (full width) so the upload row stays aligned
+tdr_source = st.radio(
+    "TDR file from",
+    options=["Local file", "SharePoint"],
+    horizontal=True,
+    key="tdr_source",
+    help="Local upload or pick a file directly from SharePoint (if configured)",
+)
+use_sharepoint_direct = tdr_source == "SharePoint" and sharepoint_graph.has_sharepoint_credentials()
+
+if tdr_source == "SharePoint" and not use_sharepoint_direct:
+    st.markdown(
+        f'<a href="{TDR_SHAREPOINT_URL}" target="_blank" rel="noopener" '
+        'style="font-size: 0.85rem; color: #0d9488;">📂 Open TDR folder on SharePoint</a>',
+        unsafe_allow_html=True,
     )
-    use_sharepoint_direct = tdr_source == "SharePoint" and sharepoint_graph.has_sharepoint_credentials()
+    st.caption("Download the TDR file from SharePoint, then upload it below. Or set app secrets for direct pick.")
 
-    if tdr_source == "SharePoint" and not use_sharepoint_direct:
-        st.markdown(
-            f'<a href="{TDR_SHAREPOINT_URL}" target="_blank" rel="noopener" '
-            'style="font-size: 0.85rem; color: #0d9488;">📂 Open TDR folder on SharePoint</a>',
-            unsafe_allow_html=True,
-        )
-        st.caption("Download the TDR file from SharePoint, then upload it below. Or set app secrets for direct pick.")
+# Row 3: Both drag-and-drop areas in the same row
+col_tdr, col_lvt = st.columns(2)
 
+with col_tdr:
     if use_sharepoint_direct:
         token = sharepoint_graph.get_token()
         if not token:
@@ -160,7 +167,6 @@ with col_tdr:
             st.caption("Upload file to pick sheet." if tdr_source == "Local file" else "Upload file or set secrets for direct pick.")
 
 with col_lvt:
-    st.markdown("**LVT Report**")
     lvt_file = st.file_uploader("LVT Excel (required)", type=["xlsx", "xlsm"], help="BAN-wise list", key="lvt_upload")
     lvt_sheet = None
     if lvt_file and lvt_file.size > 0:
