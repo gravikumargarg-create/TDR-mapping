@@ -3,7 +3,7 @@ TDR Portal – Choose Synthetic data (TDR mapping) or Production data (LVT TDR D
 """
 import streamlit as st
 
-st.set_page_config(page_title="TDR Portal", page_icon="📋", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="TDR Portal", page_icon="📋", layout="centered", initial_sidebar_state="expanded")
 
 st.markdown(
     """
@@ -34,15 +34,23 @@ st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
 
-# Buttons + switch_page so navigation works on Streamlit Cloud (markdown links often reload same page)
+# link_button navigates the browser to the page URL (avoids StreamlitAPIException from switch_page on Cloud)
 with col1:
-    if st.button("📋 **Synthetic data** – TDR mapping sheet creation", use_container_width=True, type="primary"):
-        st.switch_page("pages/1_Synthetic_TDR.py")
+    st.link_button(
+        "📋 **Synthetic data** – TDR mapping sheet creation",
+        url="/1_Synthetic_TDR",
+        type="primary",
+        use_container_width=True,
+    )
     st.caption("Upload TDR data + LVT report → mapping and TDR-wise reports.")
 
 with col2:
-    if st.button("📋 **Production data** – LVT TDR Delivery", use_container_width=True, type="primary"):
-        st.switch_page("pages/2_Production_LVT.py")
+    st.link_button(
+        "📋 **Production data** – LVT TDR Delivery",
+        url="/2_Production_LVT",
+        type="primary",
+        use_container_width=True,
+    )
     st.caption("Upload LVT + data Excel files → report + INSERT SQL (no DB).")
 
 st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
