@@ -81,8 +81,54 @@ def render_production():
                         default_tdr_id=default_tdr.strip() or None,
                         log_fn=log_fn,
                     )
-                for line in log_lines:
-                    st.text(line)
+                # Format log: hide tmp paths; stress that user must download manually (nothing saved to disk)
+                import re
+                def _format_log_line(line):
+                    if "Report:" in line and ("/tmp/" in line or "report" in line.lower()):
+                        return ("✓ **Report ready** — download using the button below.", "success")
+                    if line.strip().startswith("Wrote ") and "INSERT" in line and "to " in line:
+                        m = re.search(r"Wrote (\d+) INSERT", line)
+                        n = m.group(1) if m else "0"
+                        return (f"✓ **INSERT SQL ready** ({n} statements) — download using the button below.", "success")
+                    if line.strip().startswith("Step "):
+                        return (line.strip(), "step")
+                    if line.strip().startswith("  ") and ".xlsx" in line:
+                        return (line.strip(), "file")
+                    return (line, "text")
+
+                formatted = [_format_log_line(ln) for ln in log_lines]
+
+                with st.expander("**Run log**", expanded=True):
+                    st.markdown(
+                        """
+                        <div style="
+                            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+                            border: 1px solid #cbd5e1;
+                            border-radius: 10px;
+                            padding: 1.25rem 1.5rem;
+                            font-size: 0.9rem;
+                            margin-bottom: 0.5rem;
+                            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                        ">
+                        """,
+                        unsafe_allow_html=True,
+                    )
+                    for line, kind in formatted:
+                        if not line.strip():
+                            continue
+                        if kind == "step":
+                            st.markdown(f"**{line}**")
+                        elif kind == "file":
+                            st.markdown(f"- {line}")
+                        elif kind == "success":
+                            st.markdown(f"🟢 {line}")
+                        else:
+                            st.markdown(line)
+                    st.markdown(
+                        "<div style='margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #e2e8f0; color: #64748b; font-size: 0.85rem;'>Report and SQL are not saved to disk — download them using the buttons below.</div>",
+                        unsafe_allow_html=True,
+                    )
+
                 if report_path and report_path.is_file():
                     report_bytes = report_path.read_bytes()
                     sql_bytes = sql_path.read_bytes() if sql_path and sql_path.is_file() else None
@@ -106,7 +152,7 @@ def render_production():
 
     if "lvt_result" in st.session_state:
         r = st.session_state["lvt_result"]
-        st.success("Done — download report and INSERT SQL below.")
+        st.success("Done — download the report and INSERT SQL using the buttons below (nothing is saved to disk).")
         c1, c2 = st.columns(2)
         with c1:
             st.download_button("Download report (Excel)", data=r["report_bytes"], file_name=r["report_name"], mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_report")
