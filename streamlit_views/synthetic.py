@@ -226,25 +226,72 @@ def render_synthetic():
                     margin: 0.5rem 0 1rem 0;
                     box-shadow: 0 1px 3px rgba(13, 148, 136, 0.15);
                 ">
-                    <div style="font-size: 1.1rem; font-weight: 700; color: #0f766e; margin-bottom: 0.75rem;">High-level summary</div>
+                    <div style="font-size: 1.1rem; font-weight: 700; color: #0f766e; margin-bottom: 1rem;">High-level summary</div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
 
-            # BAN: total first, then breakdown (once)
-            st.markdown("**BAN** — total, then by result")
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Total BAN", total)
-            m2.metric("Passed", passed)
-            m3.metric("Failed", failed)
-            m4.metric("Not found", not_found)
+            # BAN wise summary — bordered section, total first then breakdown with colors
+            ban_html = f"""
+            <div style="
+                border: 1px solid #0d9488;
+                border-radius: 8px;
+                padding: 1rem 1.25rem;
+                margin-bottom: 1rem;
+                background: #fff;
+            ">
+                <div style="font-weight: 700; color: #0f766e; margin-bottom: 0.75rem; font-size: 1rem;">BAN wise summary</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 1rem;">
+                    <div style="border: 1px solid #94a3b8; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #f8fafc;">
+                        <div style="font-size: 0.8rem; color: #64748b;">Total BAN</div>
+                        <div style="font-size: 1.25rem; font-weight: 700;">{total}</div>
+                    </div>
+                    <div style="border: 1px solid #22c55e; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #dcfce7;">
+                        <div style="font-size: 0.8rem; color: #166534;">Passed</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #15803d;">{passed}</div>
+                    </div>
+                    <div style="border: 1px solid #ef4444; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #fee2e2;">
+                        <div style="font-size: 0.8rem; color: #991b1b;">Failed</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #b91c1c;">{failed}</div>
+                    </div>
+                    <div style="border: 1px solid #eab308; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #fef9c3;">
+                        <div style="font-size: 0.8rem; color: #854d0e;">Not found</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #a16207;">{not_found}</div>
+                    </div>
+                </div>
+            </div>
+            """
+            st.markdown(ban_html, unsafe_allow_html=True)
 
-            st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
-            # TDR-wise: total first, then breakdown
-            st.markdown("**TDR-wise** — total, then by result")
-            n1, n2, n3, n4 = st.columns(4)
-            n1.metric("Total TDR", total_tdr)
-            n2.metric("TDR Passed", tdr_p)
-            n3.metric("TDR Failed", tdr_f)
-            n4.metric("TDR Partial", tdr_part)
+            # TDR wise summary — bordered section, total first then breakdown with colors
+            tdr_html = f"""
+            <div style="
+                border: 1px solid #0d9488;
+                border-radius: 8px;
+                padding: 1rem 1.25rem;
+                margin-bottom: 0.5rem;
+                background: #fff;
+            ">
+                <div style="font-weight: 700; color: #0f766e; margin-bottom: 0.75rem; font-size: 1rem;">TDR wise summary</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 1rem;">
+                    <div style="border: 1px solid #94a3b8; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #f8fafc;">
+                        <div style="font-size: 0.8rem; color: #64748b;">Total TDR</div>
+                        <div style="font-size: 1.25rem; font-weight: 700;">{total_tdr}</div>
+                    </div>
+                    <div style="border: 1px solid #22c55e; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #dcfce7;">
+                        <div style="font-size: 0.8rem; color: #166534;">TDR Passed</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #15803d;">{tdr_p}</div>
+                    </div>
+                    <div style="border: 1px solid #ef4444; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #fee2e2;">
+                        <div style="font-size: 0.8rem; color: #991b1b;">TDR Failed</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #b91c1c;">{tdr_f}</div>
+                    </div>
+                    <div style="border: 1px solid #eab308; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #fef9c3;">
+                        <div style="font-size: 0.8rem; color: #854d0e;">TDR Partial</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #a16207;">{tdr_part}</div>
+                    </div>
+                </div>
+            </div>
+            """
+            st.markdown(tdr_html, unsafe_allow_html=True)
