@@ -216,21 +216,35 @@ def render_synthetic():
             total_tdr = tdr_p + tdr_f + tdr_part
 
             st.markdown("---")
-            st.subheader("High-level summary")
+            st.markdown(
+                """
+                <div style="
+                    background: linear-gradient(135deg, #f0fdfa 0%, #e0f2fe 100%);
+                    border: 1px solid #0d9488;
+                    border-radius: 10px;
+                    padding: 1rem 1.25rem;
+                    margin: 0.5rem 0 1rem 0;
+                    box-shadow: 0 1px 3px rgba(13, 148, 136, 0.15);
+                ">
+                    <div style="font-size: 1.1rem; font-weight: 700; color: #0f766e; margin-bottom: 0.75rem;">High-level summary</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
-            st.markdown("**Total customer (BAN)**")
-            st.metric("Total customer", total)
-
-            st.markdown("**BAN result**")
+            # BAN: total first, then breakdown (once)
+            st.markdown("**BAN** — total, then by result")
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Passed", passed)
-            m2.metric("Failed", failed)
-            m3.metric("Not found", not_found)
-            m4.metric("Total BAN", total)
+            m1.metric("Total BAN", total)
+            m2.metric("Passed", passed)
+            m3.metric("Failed", failed)
+            m4.metric("Not found", not_found)
 
-            st.markdown("**TDR-wise result**")
+            st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+            # TDR-wise: total first, then breakdown
+            st.markdown("**TDR-wise** — total, then by result")
             n1, n2, n3, n4 = st.columns(4)
-            n1.metric("TDR Passed", tdr_p)
-            n2.metric("TDR Failed", tdr_f)
-            n3.metric("TDR Partial", tdr_part)
-            n4.metric("Total TDR", total_tdr)
+            n1.metric("Total TDR", total_tdr)
+            n2.metric("TDR Passed", tdr_p)
+            n3.metric("TDR Failed", tdr_f)
+            n4.metric("TDR Partial", tdr_part)
