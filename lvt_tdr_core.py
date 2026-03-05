@@ -301,7 +301,11 @@ def get_synthetic_customer_ids(lvt_path, sheet_name=None, base_folder=None):
 
     ban_col = _find_customer_column_in_lvt(ws)
     status_col = _find_status_column_in_lvt(ws)
-    ban_header_keywords = ("ban", "bans", "customer", "customer id", "account", "cid")
+    # Skip header row and any header-like cell (so Total BAN = data rows only)
+    ban_header_keywords = (
+        "ban", "bans", "customer", "customer id", "account", "cid",
+        "lgc_customer_id", "customer_id", "status",
+    )
     customer_ids = []
     seen = set()
     lvt_status = {}
@@ -313,6 +317,9 @@ def get_synthetic_customer_ids(lvt_path, sheet_name=None, base_folder=None):
             continue
         cid = str(val).strip()
         if not cid or cid.lower() in ban_header_keywords:
+            continue
+        # Skip if value looks like a header (e.g. only letters/underscores, no digits)
+        if cid.replace("_", "").replace("-", "").isalpha():
             continue
         status_val = row[status_col - 1] if status_col <= len(row) else None
         status_str = str(status_val).strip() if status_val is not None else ""

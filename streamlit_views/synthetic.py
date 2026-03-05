@@ -232,7 +232,7 @@ def render_synthetic():
                 unsafe_allow_html=True,
             )
 
-            # BAN wise summary — bordered section, total first then breakdown with colors
+            # BAN wise summary — only Total, Passed, Failed (no Not found)
             ban_html = f"""
             <div style="
                 border: 1px solid #0d9488;
@@ -254,10 +254,6 @@ def render_synthetic():
                     <div style="border: 1px solid #ef4444; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #fee2e2;">
                         <div style="font-size: 0.8rem; color: #991b1b;">Failed</div>
                         <div style="font-size: 1.25rem; font-weight: 700; color: #b91c1c;">{failed}</div>
-                    </div>
-                    <div style="border: 1px solid #eab308; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #fef9c3;">
-                        <div style="font-size: 0.8rem; color: #854d0e;">Not found</div>
-                        <div style="font-size: 1.25rem; font-weight: 700; color: #a16207;">{not_found}</div>
                     </div>
                 </div>
             </div>
