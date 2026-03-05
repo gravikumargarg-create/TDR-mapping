@@ -623,19 +623,76 @@ def search_all_input_files(input_file_paths, customer_ids, base_folder, treat_as
 # Step 3: Write mapping Excel
 # ---------------------------------------------------------------------------
 
+# Label for mapping status "Not found" (customer not in any data file) in TDR Summary
+NOT_MAPPING_LABEL = "Not mapping with any files"
+
+
+def _build_tdr_summary_rows_from_mapping(merged, lvt_status):
+    """
+    Build TDR Summary from mapping (LVT customers only). One row per TDR / No TDR / Not mapping.
+    - TDR rows: customers with status Found and a TDR Number.
+    - No TDR: customers with status Found but no TDR.
+    - Not mapping with any files: customers with status Not found (not in any data file).
+    Returns list of (label, total, passed, failed, not_found, status).
+    """
+    from collections import defaultdict
+    lvt_status = lvt_status or {}
+    # Group LVT customers (merged) by mapping bucket
+    bucket_to_cids = defaultdict(list)
+    for cid, info in merged.items():
+        status = (info.get("status") or "").strip()
+        tdr_id = info.get("tdr_id")
+        if status == "Found" and tdr_id:
+            bucket_to_cids[tdr_id].append(cid)
+        elif status == "Found but no TDR":
+            bucket_to_cids[NO_TDR_LABEL].append(cid)
+        else:
+            bucket_to_cids[NOT_MAPPING_LABEL].append(cid)
+
+    rows = []
+    # Sort: TDR numbers first, then "No TDR", then "Not mapping with any files"
+    def sort_key(item):
+        label = item[0]
+        if label == NO_TDR_LABEL:
+            return (1, "")
+        if label == NOT_MAPPING_LABEL:
+            return (2, "")
+        return (0, str(label))
+
+    for bucket in sorted(bucket_to_cids.keys(), key=lambda b: sort_key((b,))):
+        cids = bucket_to_cids[bucket]
+        total = len(cids)
+        passed = failed = not_found = 0
+        for cid in cids:
+            st = (lvt_status.get(cid) or "").strip().lower()
+            if st == "passed":
+                passed += 1
+            elif st == "failed":
+                failed += 1
+            else:
+                not_found += 1
+        if failed > 0:
+            status = "Failed"
+        elif not_found > 0:
+            status = "Partial"
+        else:
+            status = "Passed"
+        rows.append((bucket, total, passed, failed, not_found, status))
+    return rows
+
+
 def _build_tdr_summary_rows(tdr_list_dict, merged, lvt_status):
     """
     Build TDR Summary: for each TDR (from tdr_list_dict, exclude No TDR), compute
     Total BANs, Passed, Failed, Not found, TDR Status. Returns list of (tdr, total, passed, failed, not_found, status).
+    (Legacy: used when summary was per TDR data; prefer _build_tdr_summary_rows_from_mapping for LVT report.)
     """
     from collections import defaultdict
     lvt_status = lvt_status or {}
-    # Reverse lookup: core customer id -> one merged key (LVT id)
     core_to_merged_key = {}
     for mk in merged:
         core = _core_customer_id(mk) or mk
         core_to_merged_key.setdefault(core, mk)
-    # Group TDR list by TDR (exclude No TDR)
     tdr_to_bans = defaultdict(list)
     for cid, info in tdr_list_dict.items():
         tdr_val = info.get("tdr", NO_TDR_LABEL)
@@ -746,8 +803,8 @@ def write_mapping_excel(merged, output_path, lvt_status=None, tdr_list_dict=None
     _auto_column_widths(ws)
 
     ws_summary = wb.create_sheet(title="TDR Summary", index=1)
-    if tdr_list_dict:
-        summary_rows = _build_tdr_summary_rows(tdr_list_dict, merged, lvt_status)
+    if merged:
+        summary_rows = _build_tdr_summary_rows_from_mapping(merged, lvt_status)
         sum_headers = ["TDR", "Total BANs", "Passed", "Failed", "Not found", "TDR Status"]
         ws_summary.append(sum_headers)
         for c in range(1, len(sum_headers) + 1):
@@ -940,7 +997,7 @@ def run_lvt_tdr_from_paths(
     passed = sum(1 for c in customer_ids if (lvt_status.get(c) or "").strip().lower() == "passed")
     failed = sum(1 for c in customer_ids if (lvt_status.get(c) or "").strip().lower() == "failed")
     not_found = sum(1 for c in merged.values() if (c.get("status") or "") == "Not found")
-    summary_rows = _build_tdr_summary_rows(tdr_list_dict, merged, lvt_status) if tdr_list_dict else []
+    summary_rows = _build_tdr_summary_rows_from_mapping(merged, lvt_status)
     tdr_passed = sum(1 for r in summary_rows if r[5] == "Passed")
     tdr_failed = sum(1 for r in summary_rows if r[5] == "Failed")
     tdr_partial = sum(1 for r in summary_rows if r[5] == "Partial")
