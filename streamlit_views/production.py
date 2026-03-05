@@ -80,20 +80,30 @@ def render_production():
                         requestor=requestor.strip() or None,
                         default_tdr_id=default_tdr.strip() or None,
                         log_fn=log_fn,
+                        log_paths=False,
                     )
-                # Format log: hide tmp paths; stress that user must download manually (nothing saved to disk)
+                # Format log: never show file paths; always show friendly "download below" messages
                 import re
                 def _format_log_line(line):
-                    if "Report:" in line and ("/tmp/" in line or "report" in line.lower()):
+                    s = line.strip()
+                    # Core can send short messages (when log_paths=False) or path messages
+                    if "Report ready for download" in line:
                         return ("✓ **Report ready** — download using the button below.", "success")
-                    if line.strip().startswith("Wrote ") and "INSERT" in line and "to " in line:
+                    if "INSERT SQL ready" in line and "for download" in line:
+                        m = re.search(r"\((\d+) statements\)", line)
+                        n = m.group(1) if m else ""
+                        return (f"✓ **INSERT SQL ready** ({n} statements) — download using the button below." if n else "✓ **INSERT SQL ready** — download using the button below.", "success")
+                    # Hide any line that contains a file path (Report or SQL)
+                    if "Report:" in line and (".xlsx" in line or "/" in line or "\\" in line or "report" in line.lower() or "tmp" in line):
+                        return ("✓ **Report ready** — download using the button below.", "success")
+                    if "Wrote " in line and " INSERT " in line and (" to " in line or ".sql" in line):
                         m = re.search(r"Wrote (\d+) INSERT", line)
                         n = m.group(1) if m else "0"
                         return (f"✓ **INSERT SQL ready** ({n} statements) — download using the button below.", "success")
-                    if line.strip().startswith("Step "):
-                        return (line.strip(), "step")
-                    if line.strip().startswith("  ") and ".xlsx" in line:
-                        return (line.strip(), "file")
+                    if s.startswith("Step "):
+                        return (s, "step")
+                    if line.startswith("  ") and ".xlsx" in line:
+                        return (s, "file")
                     return (line, "text")
 
                 formatted = [_format_log_line(ln) for ln in log_lines]

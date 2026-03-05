@@ -943,14 +943,28 @@ def run_lvt_tdr_from_paths(
     requestor=None,
     default_tdr_id=None,
     log_fn=None,
+    log_paths=True,
 ):
     """
     Run LVT TDR pipeline from given file paths (for Streamlit or other callers).
     No config, no prompts. Returns (report_excel_path, insert_sql_path, summary_dict).
     lvt_path: Path to LVT Excel. data_paths: list of Paths to data Excel files.
-    output_dir: where to write report and SQL. Other args optional.
+    output_dir: where to write report and SQL. log_paths=False: do not log file paths (for UI).
     """
-    log = log_fn or (lambda msg: None)
+    _raw_log = log_fn or (lambda msg: None)
+    if not log_paths:
+        import re
+        def log(msg):
+            if "Report:" in msg and (".xlsx" in msg or "/" in msg or "\\" in msg):
+                _raw_log("Report ready for download.")
+            elif "Wrote " in msg and " INSERT " in msg and " to " in msg:
+                m = re.search(r"Wrote (\d+) INSERT", msg)
+                n = m.group(1) if m else "0"
+                _raw_log(f"INSERT SQL ready ({n} statements) for download.")
+            else:
+                _raw_log(msg)
+    else:
+        log = _raw_log
     lvt_path = Path(lvt_path)
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
