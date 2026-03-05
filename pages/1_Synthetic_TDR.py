@@ -14,7 +14,13 @@ import sharepoint_graph
 
 st.set_page_config(page_title="Synthetic – TDR mapping", page_icon="📋", layout="centered")
 
-st.markdown('[← Back to TDR Portal](/)')
+# Back to Portal: top of page and in sidebar
+if hasattr(st, "page_link"):
+    st.page_link("app.py", label="← Back to TDR Portal", icon="🏠")
+    st.sidebar.page_link("app.py", label="← Back to TDR Portal", icon="🏠")
+else:
+    st.markdown("[← **Back to TDR Portal**](/)")
+    st.sidebar.markdown("[← Back to TDR Portal](/)")
 st.markdown(
     """
     <style>
