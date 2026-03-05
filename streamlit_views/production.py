@@ -40,6 +40,12 @@ def render_production():
     st.markdown("**2. Data Excel files** (all non-LVT Excel files; TDR data, Rate Plan, etc.)")
     data_files = st.file_uploader("Data Excel files (multiple)", type=["xlsx", "xlsm"], accept_multiple_files=True, key="data_prod")
 
+    with st.expander("**Optional – for INSERT SQL** (only if you need the download with custom values)"):
+        st.caption("Leave blank to still generate INSERT SQL with empty OWNER/REQUESTOR; use Default TDR for rows that are Found but have no TDR.")
+        owner = st.text_input("OWNER (for SQL)", value="", key="owner_prod")
+        requestor = st.text_input("REQUESTOR (for SQL)", value="", key="requestor_prod")
+        default_tdr = st.text_input("Default TDR for 'Found but no TDR' rows", value="", key="default_tdr_prod")
+
     run = st.button("Run LVT TDR", type="primary")
 
     if run and run_lvt_tdr_from_paths is None:
@@ -70,7 +76,9 @@ def render_production():
                     report_path, sql_path, summary = run_lvt_tdr_from_paths(
                         lvt_path, data_paths, out_dir,
                         lvt_sheet_name=lvt_sheet or "BAN Wise Result",
-                        owner=None, requestor=None, default_tdr_id=None,
+                        owner=owner.strip() or None,
+                        requestor=requestor.strip() or None,
+                        default_tdr_id=default_tdr.strip() or None,
                         log_fn=log_fn,
                     )
                 for line in log_lines:
