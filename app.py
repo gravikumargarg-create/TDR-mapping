@@ -35,26 +35,20 @@ st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 col1, col2 = st.columns(2)
 
 with col1:
-    if st.button(
-        "**Synthetic data**  \nTDR mapping sheet creation",
-        key="btn_synthetic",
-        use_container_width=True,
-        type="primary",
-    ):
-        st.switch_page("pages/1_Synthetic_TDR.py")
+    if hasattr(st, "page_link"):
+        st.page_link("pages/1_Synthetic_TDR.py", label="Synthetic data – TDR mapping sheet creation", icon="📋")
+    else:
+        st.markdown("[**Synthetic data – TDR mapping sheet creation**](pages/1_Synthetic_TDR)")
     st.caption("Upload TDR data + LVT report → mapping and TDR-wise reports.")
 
 with col2:
-    if st.button(
-        "**Production data**  \nLVT TDR Delivery",
-        key="btn_production",
-        use_container_width=True,
-        type="primary",
-    ):
-        st.switch_page("pages/2_Production_LVT.py")
+    if hasattr(st, "page_link"):
+        st.page_link("pages/2_Production_LVT.py", label="Production data – LVT TDR Delivery", icon="📋")
+    else:
+        st.markdown("[**Production data – LVT TDR Delivery**](pages/2_Production_LVT)")
     st.caption("Upload LVT + data Excel files → report + INSERT SQL (no DB).")
 
 st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
 st.markdown(
-    "---  \n*Synthetic*: TDR mapping for synthetic/test data.  \n*Production*: LVT TDR mapping and INSERT SQL for production (run SQL manually)."
+    "---  \n*Synthetic*: TDR mapping for synthetic/test data.  \n*Production*: LVT TDR mapping and INSERT SQL for production (run SQL manually).  \n\nYou can also use the **sidebar** to open **1_Synthetic_TDR** or **2_Production_LVT** directly."
 )
