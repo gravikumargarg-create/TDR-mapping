@@ -35,11 +35,6 @@ if st.session_state.portal_view != "portal":
         _clear_view_state()
         st.session_state.portal_view = "portal"
         st.rerun()
-    st.sidebar.markdown("**TDR Portal**")
-    if st.sidebar.button("← Back to portal", key="sidebar_back"):
-        _clear_view_state()
-        st.session_state.portal_view = "portal"
-        st.rerun()
 
     if st.session_state.portal_view == "synthetic":
         from streamlit_views.synthetic import render_synthetic
