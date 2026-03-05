@@ -34,18 +34,13 @@ st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
 
+# Use markdown links (st.page_link can raise KeyError on Streamlit Cloud)
 with col1:
-    if hasattr(st, "page_link"):
-        st.page_link("pages/1_Synthetic_TDR.py", label="Synthetic data – TDR mapping sheet creation", icon="📋")
-    else:
-        st.markdown("[**Synthetic data – TDR mapping sheet creation**](pages/1_Synthetic_TDR)")
+    st.markdown('[**📋 Synthetic data – TDR mapping sheet creation**](/1_Synthetic_TDR)')
     st.caption("Upload TDR data + LVT report → mapping and TDR-wise reports.")
 
 with col2:
-    if hasattr(st, "page_link"):
-        st.page_link("pages/2_Production_LVT.py", label="Production data – LVT TDR Delivery", icon="📋")
-    else:
-        st.markdown("[**Production data – LVT TDR Delivery**](pages/2_Production_LVT)")
+    st.markdown('[**📋 Production data – LVT TDR Delivery**](/2_Production_LVT)')
     st.caption("Upload LVT + data Excel files → report + INSERT SQL (no DB).")
 
 st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
