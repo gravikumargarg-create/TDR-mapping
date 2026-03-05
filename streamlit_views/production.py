@@ -67,7 +67,7 @@ def render_production():
                 def log_fn(msg):
                     log_lines.append(msg)
                 with st.spinner("Processing…"):
-                    report_path, sql_path = run_lvt_tdr_from_paths(
+                    report_path, sql_path, summary = run_lvt_tdr_from_paths(
                         lvt_path, data_paths, out_dir,
                         lvt_sheet_name=lvt_sheet or "BAN Wise Result",
                         owner=None, requestor=None, default_tdr_id=None,
@@ -83,6 +83,7 @@ def render_production():
                         "report_name": report_path.name,
                         "sql_bytes": sql_bytes,
                         "sql_name": sql_path.name if sql_path else None,
+                        "summary": summary,
                     }
                 else:
                     st.error("Report generation failed.")
@@ -106,3 +107,91 @@ def render_production():
                 st.download_button("Download INSERT SQL", data=r["sql_bytes"], file_name=r["sql_name"], mime="text/plain", key="dl_sql")
             else:
                 st.info("No INSERT SQL (no eligible rows: LVT Passed + Found/Found but no TDR).")
+
+        if r.get("summary"):
+            s = r["summary"]
+            total = s.get("total", 0)
+            passed = s.get("passed", 0)
+            failed = s.get("failed", 0)
+            not_found = s.get("not_found", 0)
+            tdr_p, tdr_f, tdr_part = s.get("tdr_passed", 0), s.get("tdr_failed", 0), s.get("tdr_partial", 0)
+            total_tdr = tdr_p + tdr_f + tdr_part
+
+            st.markdown("---")
+            st.markdown(
+                """
+                <div style="
+                    background: linear-gradient(135deg, #f0fdfa 0%, #e0f2fe 100%);
+                    border: 1px solid #0d9488;
+                    border-radius: 10px;
+                    padding: 1rem 1.25rem;
+                    margin: 0.5rem 0 1rem 0;
+                    box-shadow: 0 1px 3px rgba(13, 148, 136, 0.15);
+                ">
+                    <div style="font-size: 1.1rem; font-weight: 700; color: #0f766e; margin-bottom: 1rem;">High-level summary</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            ban_html = f"""
+            <div style="
+                border: 1px solid #0d9488;
+                border-radius: 8px;
+                padding: 1rem 1.25rem;
+                margin-bottom: 1rem;
+                background: #fff;
+            ">
+                <div style="font-weight: 700; color: #0f766e; margin-bottom: 0.75rem; font-size: 1rem;">BAN wise summary</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 1rem;">
+                    <div style="border: 1px solid #94a3b8; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #f8fafc;">
+                        <div style="font-size: 0.8rem; color: #64748b;">Total BAN</div>
+                        <div style="font-size: 1.25rem; font-weight: 700;">{total}</div>
+                    </div>
+                    <div style="border: 1px solid #22c55e; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #dcfce7;">
+                        <div style="font-size: 0.8rem; color: #166534;">Passed</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #15803d;">{passed}</div>
+                    </div>
+                    <div style="border: 1px solid #ef4444; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #fee2e2;">
+                        <div style="font-size: 0.8rem; color: #991b1b;">Failed</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #b91c1c;">{failed}</div>
+                    </div>
+                    <div style="border: 1px solid #eab308; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #fef9c3;">
+                        <div style="font-size: 0.8rem; color: #854d0e;">Not found</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #a16207;">{not_found}</div>
+                    </div>
+                </div>
+            </div>
+            """
+            st.markdown(ban_html, unsafe_allow_html=True)
+
+            tdr_html = f"""
+            <div style="
+                border: 1px solid #0d9488;
+                border-radius: 8px;
+                padding: 1rem 1.25rem;
+                margin-bottom: 0.5rem;
+                background: #fff;
+            ">
+                <div style="font-weight: 700; color: #0f766e; margin-bottom: 0.75rem; font-size: 1rem;">TDR wise summary</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 1rem;">
+                    <div style="border: 1px solid #94a3b8; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #f8fafc;">
+                        <div style="font-size: 0.8rem; color: #64748b;">Total TDR</div>
+                        <div style="font-size: 1.25rem; font-weight: 700;">{total_tdr}</div>
+                    </div>
+                    <div style="border: 1px solid #22c55e; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #dcfce7;">
+                        <div style="font-size: 0.8rem; color: #166534;">TDR Passed</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #15803d;">{tdr_p}</div>
+                    </div>
+                    <div style="border: 1px solid #ef4444; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #fee2e2;">
+                        <div style="font-size: 0.8rem; color: #991b1b;">TDR Failed</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #b91c1c;">{tdr_f}</div>
+                    </div>
+                    <div style="border: 1px solid #eab308; border-radius: 6px; padding: 0.5rem 1rem; min-width: 90px; background: #fef9c3;">
+                        <div style="font-size: 0.8rem; color: #854d0e;">TDR Partial</div>
+                        <div style="font-size: 1.25rem; font-weight: 700; color: #a16207;">{tdr_part}</div>
+                    </div>
+                </div>
+            </div>
+            """
+            st.markdown(tdr_html, unsafe_allow_html=True)

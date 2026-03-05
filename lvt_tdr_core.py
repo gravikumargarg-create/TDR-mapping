@@ -691,8 +691,8 @@ def _auto_column_widths(ws, min_width=8, max_width=60):
         ws.column_dimensions[letter].width = min(max(max_len, min_width), max_width)
 
 
-def write_mapping_excel(merged, output_path, lvt_status=None, tdr_list_dict=None, tdr_list_all_rows=None):
-    """Write one workbook with TDR Summary, Mapping, and (if tdr_list_all_rows) TDR Customer List. Column widths set for readability."""
+def write_mapping_excel(merged, output_path, lvt_status=None, tdr_list_dict=None, tdr_list_all_rows=None, include_tdr_customer_list=False):
+    """Write one workbook with Mapping and TDR Summary. Optionally add TDR Customer List sheet if include_tdr_customer_list and tdr_list_all_rows given."""
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
@@ -775,7 +775,7 @@ def write_mapping_excel(merged, output_path, lvt_status=None, tdr_list_dict=None
         ws_summary.append(["No TDR summary (no data)"])
         _auto_column_widths(ws_summary)
 
-    if tdr_list_all_rows is not None:
+    if include_tdr_customer_list and tdr_list_all_rows is not None:
         # One row per (customer ID, file, sheet) so every file (e.g. Rate Plan Data_QE.xlsx) appears
         ws_tdr_list = wb.create_sheet(title="TDR Customer List", index=2)
         list_headers = ["Customer ID", "TDR Number", "Excel File", "Sheet Name"]
@@ -889,7 +889,7 @@ def run_lvt_tdr_from_paths(
 ):
     """
     Run LVT TDR pipeline from given file paths (for Streamlit or other callers).
-    No config, no prompts. Returns (report_excel_path, insert_sql_path).
+    No config, no prompts. Returns (report_excel_path, insert_sql_path, summary_dict).
     lvt_path: Path to LVT Excel. data_paths: list of Paths to data Excel files.
     output_dir: where to write report and SQL. Other args optional.
     """
@@ -931,9 +931,23 @@ def run_lvt_tdr_from_paths(
     report_excel = output_dir / f"LVT_TDR_Report_{ts}.xlsx"
     write_mapping_excel(
         merged, report_excel, lvt_status=lvt_status, tdr_list_dict=tdr_list_dict,
-        tdr_list_all_rows=tdr_list_all_rows,
+        tdr_list_all_rows=tdr_list_all_rows, include_tdr_customer_list=False,
     )
     log(f"Report: {report_excel}")
+
+    # Build summary for UI (BAN wise + TDR wise)
+    total = len(customer_ids)
+    passed = sum(1 for c in customer_ids if (lvt_status.get(c) or "").strip().lower() == "passed")
+    failed = sum(1 for c in customer_ids if (lvt_status.get(c) or "").strip().lower() == "failed")
+    not_found = sum(1 for c in merged.values() if (c.get("status") or "") == "Not found")
+    summary_rows = _build_tdr_summary_rows(tdr_list_dict, merged, lvt_status) if tdr_list_dict else []
+    tdr_passed = sum(1 for r in summary_rows if r[5] == "Passed")
+    tdr_failed = sum(1 for r in summary_rows if r[5] == "Failed")
+    tdr_partial = sum(1 for r in summary_rows if r[5] == "Partial")
+    summary = {
+        "total": total, "passed": passed, "failed": failed, "not_found": not_found,
+        "tdr_passed": tdr_passed, "tdr_failed": tdr_failed, "tdr_partial": tdr_partial,
+    }
 
     rows_to_insert = []
     for cid in sorted(merged.keys()):
@@ -953,7 +967,7 @@ def run_lvt_tdr_from_paths(
         rows_to_insert, owner, requestor, default_tdr_id,
         insert_sql_path, table_name=BAN_MASTER_TABLE_SQL, log=log
     )
-    return report_excel, insert_sql_path
+    return report_excel, insert_sql_path, summary
 
 
 # ---------------------------------------------------------------------------

@@ -79,7 +79,7 @@ elif run:
             def log_fn(msg):
                 log_lines.append(msg)
             with st.spinner("Processing…"):
-                report_path, sql_path = run_lvt_tdr_from_paths(
+                report_path, sql_path, _ = run_lvt_tdr_from_paths(
                     lvt_path, data_paths, out_dir,
                     lvt_sheet_name=lvt_sheet or "BAN Wise Result",
                     owner=owner or None, requestor=requestor or None, default_tdr_id=default_tdr or None,
