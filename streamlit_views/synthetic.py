@@ -131,7 +131,8 @@ def render_synthetic():
         lvt_sheet = None
 
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
-    run = st.button("Run TDR", type="primary")
+    has_tdr = bool(tdr_bytes)
+    run = st.button("Run TDR", type="primary", disabled=not has_tdr)
 
     if run and not tdr_bytes:
         st.warning("Please provide **TDR Data** (upload file(s) or pick from SharePoint).")
@@ -209,10 +210,27 @@ def render_synthetic():
             st.download_button("Download main report", data=r["report_bytes"], file_name=r["report_filename"], mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_main")
         if r.get("summary"):
             s = r["summary"]
-            total, passed, failed, not_found = s.get("total", 0), s.get("passed", 0), s.get("failed", 0), s.get("not_found", 0)
+            total = s.get("total", 0)
+            passed, failed, not_found = s.get("passed", 0), s.get("failed", 0), s.get("not_found", 0)
             tdr_p, tdr_f, tdr_part = s.get("tdr_passed", 0), s.get("tdr_failed", 0), s.get("tdr_partial", 0)
+            total_tdr = tdr_p + tdr_f + tdr_part
+
+            st.markdown("---")
+            st.subheader("High-level summary")
+
+            st.markdown("**Total customer (BAN)**")
+            st.metric("Total customer", total)
+
+            st.markdown("**BAN result**")
             m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Total BAN", total)
-            m2.metric("Passed", passed)
-            m3.metric("Failed", failed)
-            m4.metric("Not found", not_found)
+            m1.metric("Passed", passed)
+            m2.metric("Failed", failed)
+            m3.metric("Not found", not_found)
+            m4.metric("Total BAN", total)
+
+            st.markdown("**TDR-wise result**")
+            n1, n2, n3, n4 = st.columns(4)
+            n1.metric("TDR Passed", tdr_p)
+            n2.metric("TDR Failed", tdr_f)
+            n3.metric("TDR Partial", tdr_part)
+            n4.metric("Total TDR", total_tdr)

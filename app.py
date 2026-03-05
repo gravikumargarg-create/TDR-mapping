@@ -20,13 +20,24 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+def _clear_view_state():
+    """Clear result and detection state for the current view so it resets when re-entered."""
+    if st.session_state.portal_view == "synthetic":
+        for key in ("tdr_result", "_detected", "_last_detection_key"):
+            st.session_state.pop(key, None)
+    elif st.session_state.portal_view == "production":
+        st.session_state.pop("lvt_result", None)
+
+
 # ----- Back button and sub-view content -----
 if st.session_state.portal_view != "portal":
     if st.button("← Back to TDR Portal", key="back_to_portal", type="secondary"):
+        _clear_view_state()
         st.session_state.portal_view = "portal"
         st.rerun()
     st.sidebar.markdown("**TDR Portal**")
     if st.sidebar.button("← Back to portal", key="sidebar_back"):
+        _clear_view_state()
         st.session_state.portal_view = "portal"
         st.rerun()
 
