@@ -304,12 +304,13 @@ def get_synthetic_customer_ids(lvt_path, sheet_name=None, base_folder=None):
     # Skip header row and any header-like cell (so Total BAN = data rows only)
     ban_header_keywords = (
         "ban", "bans", "customer", "customer id", "account", "cid",
-        "lgc_customer_id", "customer_id", "status",
+        "lgc_customer_id", "customer_id", "status", "lgc customer id",
     )
     customer_ids = []
     seen = set()
     lvt_status = {}
-    for row in ws.iter_rows(min_row=1, values_only=True):
+    # Start from row 2 so row 1 is always treated as header (common for LVT sheets)
+    for row in ws.iter_rows(min_row=2, values_only=True):
         if not row or ban_col > len(row):
             continue
         val = row[ban_col - 1]
@@ -318,8 +319,10 @@ def get_synthetic_customer_ids(lvt_path, sheet_name=None, base_folder=None):
         cid = str(val).strip()
         if not cid or cid.lower() in ban_header_keywords:
             continue
-        # Skip if value looks like a header (e.g. only letters/underscores, no digits)
-        if cid.replace("_", "").replace("-", "").isalpha():
+        # Skip if value looks like a header (e.g. "customer" + "id", or only letters)
+        if "customer" in cid.lower() and "id" in cid.lower():
+            continue
+        if cid.replace("_", "").replace("-", "").replace(" ", "").isalpha():
             continue
         status_val = row[status_col - 1] if status_col <= len(row) else None
         status_str = str(status_val).strip() if status_val is not None else ""
