@@ -326,6 +326,9 @@ def get_synthetic_customer_ids(lvt_path, sheet_name=None, base_folder=None):
             continue
         status_val = row[status_col - 1] if status_col <= len(row) else None
         status_str = str(status_val).strip() if status_val is not None else ""
+        # Only count rows with Passed or Failed so Total BAN = Passed + Failed (no header/blank/other)
+        if status_str.lower() not in ("passed", "failed"):
+            continue
         lvt_status[cid] = status_str
         if cid not in seen:
             seen.add(cid)
