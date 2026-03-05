@@ -1,9 +1,14 @@
 """
-TDR Portal – Choose Synthetic data (TDR mapping) or Production data (LVT TDR Delivery).
+TDR Portal – Single-app entry. Choose Synthetic data (TDR mapping) or Production data (LVT TDR Delivery).
+Navigation uses session state so it works on Streamlit Cloud (no switch_page / page_link).
 """
 import streamlit as st
 
 st.set_page_config(page_title="TDR Portal", page_icon="📋", layout="centered", initial_sidebar_state="expanded")
+
+# Which view we're showing (portal | synthetic | production)
+if "portal_view" not in st.session_state:
+    st.session_state.portal_view = "portal"
 
 st.markdown(
     """
@@ -15,6 +20,25 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# ----- Back button and sub-view content -----
+if st.session_state.portal_view != "portal":
+    if st.button("← Back to TDR Portal", key="back_to_portal", type="secondary"):
+        st.session_state.portal_view = "portal"
+        st.rerun()
+    st.sidebar.markdown("**TDR Portal**")
+    if st.sidebar.button("← Back to portal", key="sidebar_back"):
+        st.session_state.portal_view = "portal"
+        st.rerun()
+
+    if st.session_state.portal_view == "synthetic":
+        from streamlit_views.synthetic import render_synthetic
+        render_synthetic()
+    elif st.session_state.portal_view == "production":
+        from streamlit_views.production import render_production
+        render_production()
+    st.stop()
+
+# ----- Portal home -----
 st.markdown(
     """
     <div style="
@@ -34,26 +58,19 @@ st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
 
-# link_button navigates the browser to the page URL (avoids StreamlitAPIException from switch_page on Cloud)
 with col1:
-    st.link_button(
-        "📋 **Synthetic data** – TDR mapping sheet creation",
-        url="/1_Synthetic_TDR",
-        type="primary",
-        use_container_width=True,
-    )
+    if st.button("📋 **Synthetic data** – TDR mapping sheet creation", use_container_width=True, type="primary", key="btn_synthetic"):
+        st.session_state.portal_view = "synthetic"
+        st.rerun()
     st.caption("Upload TDR data + LVT report → mapping and TDR-wise reports.")
 
 with col2:
-    st.link_button(
-        "📋 **Production data** – LVT TDR Delivery",
-        url="/2_Production_LVT",
-        type="primary",
-        use_container_width=True,
-    )
+    if st.button("📋 **Production data** – LVT TDR Delivery", use_container_width=True, type="primary", key="btn_production"):
+        st.session_state.portal_view = "production"
+        st.rerun()
     st.caption("Upload LVT + data Excel files → report + INSERT SQL (no DB).")
 
 st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
 st.markdown(
-    "---  \n*Synthetic*: TDR mapping for synthetic/test data.  \n*Production*: LVT TDR mapping and INSERT SQL for production (run SQL manually).  \n\nYou can also use the **sidebar** to open **1_Synthetic_TDR** or **2_Production_LVT** directly."
+    "---  \n*Synthetic*: TDR mapping for synthetic/test data.  \n*Production*: LVT TDR mapping and INSERT SQL for production (run SQL manually)."
 )
