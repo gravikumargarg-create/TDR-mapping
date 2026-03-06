@@ -73,7 +73,7 @@ def render_production():
                 def log_fn(msg):
                     log_lines.append(msg)
                 with st.spinner("Processing…"):
-                    report_path, sql_path, summary = run_lvt_tdr_from_paths(
+                    report_path, sql_synth_path, sql_prod_path, summary = run_lvt_tdr_from_paths(
                         lvt_path, data_paths, out_dir,
                         lvt_sheet_name=lvt_sheet or "BAN Wise Result",
                         owner=owner.strip() or None,
@@ -141,12 +141,15 @@ def render_production():
 
                 if report_path and report_path.is_file():
                     report_bytes = report_path.read_bytes()
-                    sql_bytes = sql_path.read_bytes() if sql_path and sql_path.is_file() else None
+                    sql_synth_bytes = sql_synth_path.read_bytes() if sql_synth_path and sql_synth_path.is_file() else None
+                    sql_prod_bytes = sql_prod_path.read_bytes() if sql_prod_path and sql_prod_path.is_file() else None
                     st.session_state["lvt_result"] = {
                         "report_bytes": report_bytes,
                         "report_name": report_path.name,
-                        "sql_bytes": sql_bytes,
-                        "sql_name": sql_path.name if sql_path else None,
+                        "sql_synth_bytes": sql_synth_bytes,
+                        "sql_synth_name": sql_synth_path.name if sql_synth_path else None,
+                        "sql_prod_bytes": sql_prod_bytes,
+                        "sql_prod_name": sql_prod_path.name if sql_prod_path else None,
                         "summary": summary,
                     }
                 else:
@@ -163,14 +166,37 @@ def render_production():
     if "lvt_result" in st.session_state:
         r = st.session_state["lvt_result"]
         st.success("Done — download the report and INSERT SQL using the buttons below (nothing is saved to disk).")
-        c1, c2 = st.columns(2)
+        c1, c2, c3 = st.columns(3)
         with c1:
-            st.download_button("Download report (Excel)", data=r["report_bytes"], file_name=r["report_name"], mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_report")
+            st.download_button(
+                "Download report (Excel)",
+                data=r["report_bytes"],
+                file_name=r["report_name"],
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="dl_report",
+            )
         with c2:
-            if r.get("sql_bytes"):
-                st.download_button("Download INSERT SQL", data=r["sql_bytes"], file_name=r["sql_name"], mime="text/plain", key="dl_sql")
+            if r.get("sql_synth_bytes"):
+                st.download_button(
+                    "INSERT SQL – synthetic (Passed only)",
+                    data=r["sql_synth_bytes"],
+                    file_name=r.get("sql_synth_name") or "INSERT_BAN_MASTER_LIST_LVT_SYNTH.sql",
+                    mime="text/plain",
+                    key="dl_sql_synth",
+                )
             else:
-                st.info("No INSERT SQL (no eligible rows: LVT Passed + Found/Found but no TDR).")
+                st.info("No INSERT SQL for synthetic (no Passed + mapped rows).")
+        with c3:
+            if r.get("sql_prod_bytes"):
+                st.download_button(
+                    "INSERT SQL – production (Passed + Failed)",
+                    data=r["sql_prod_bytes"],
+                    file_name=r.get("sql_prod_name") or "INSERT_BAN_MASTER_LIST_LVT.sql",
+                    mime="text/plain",
+                    key="dl_sql_prod",
+                )
+            else:
+                st.info("No INSERT SQL for production (no Passed/Failed + mapped rows).")
 
         if r.get("summary"):
             s = r["summary"]

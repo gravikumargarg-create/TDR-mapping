@@ -927,16 +927,23 @@ def write_insert_sql_file(rows_to_insert, owner, requestor, default_tdr_id, outp
         "",
     ]
     count = 0
-    for customer_id, tdr_id in rows_to_insert:
+    for row in rows_to_insert:
+        # Support (customer_id, tdr_id) or (customer_id, tdr_id, status_label)
+        if len(row) == 3:
+            customer_id, tdr_id, status_label = row
+        else:
+            customer_id, tdr_id = row
+            status_label = None
         tdr = tdr_id or default_tdr_id
         if not tdr:
             continue
         cid_sql = _sql_escape(str(customer_id))
         tdr_sql = _sql_escape(tdr)
+        status_sql = _sql_escape(status_label) if status_label else "'AVAILABLE'"
         stmt = (
             f"INSERT INTO {table_name}\n"
             " ( CUSTOMER_ID, WAS_USED, TDR_ID, OWNER, DO_NOT_USE, STATUS, DELIVERED_DATE, LOAD_DATE, REQUESTOR, FAILED_RULES, LAST_ACS_RUN_DATE )\n"
-            f" VALUES ( {cid_sql}, NULL, {tdr_sql}, {owner_sql}, NULL, 'AVAILABLE', NULL, SYSDATE, {requestor_sql}, NULL, NULL );\n"
+            f" VALUES ( {cid_sql}, NULL, {tdr_sql}, {owner_sql}, NULL, {status_sql}, NULL, SYSDATE, {requestor_sql}, NULL, NULL );\n"
         )
         lines.append(stmt)
         count += 1
@@ -960,9 +967,10 @@ def run_lvt_tdr_from_paths(
 ):
     """
     Run LVT TDR pipeline from given file paths (for Streamlit or other callers).
-    No config, no prompts. Returns (report_excel_path, insert_sql_path, summary_dict).
-    lvt_path: Path to LVT Excel. data_paths: list of Paths to data Excel files.
-    output_dir: where to write report and SQL. log_paths=False: do not log file paths (for UI).
+    No config, no prompts. Returns (report_excel_path, synth_insert_sql_path, prod_insert_sql_path, summary_dict).
+    - lvt_path: Path to LVT Excel. data_paths: list of Paths to data Excel files.
+    - output_dir: where to write report and SQL.
+    - log_paths=False: do not log file paths (for UI).
     """
     _raw_log = log_fn or (lambda msg: None)
     if not log_paths:
@@ -1033,25 +1041,39 @@ def run_lvt_tdr_from_paths(
         "tdr_passed": tdr_passed, "tdr_failed": tdr_failed, "tdr_partial": tdr_partial,
     }
 
-    rows_to_insert = []
+    # Build INSERT rows:
+    # - Synthetic SQL: only LVT Passed + (Found / Found but no TDR)
+    # - Production SQL: LVT Passed + Failed + (Found / Found but no TDR)
+    rows_synth = []
+    rows_prod = []
     for cid in sorted(merged.keys()):
         info = merged[cid]
         status = info.get("status") or "Not found"
         tdr_id = info.get("tdr_id")
-        lvt_st = (lvt_status.get(cid) or "").strip().lower()
-        if lvt_st != "passed":
+        raw_lvt = (lvt_status.get(cid) or "").strip()
+        lvt_st = raw_lvt.lower()
+        if status not in ("Found", "Found but no TDR"):
             continue
-        if status == "Found" and tdr_id:
-            rows_to_insert.append((cid, tdr_id))
-        elif status == "Found but no TDR":
-            rows_to_insert.append((cid, None))
+        if lvt_st not in ("passed", "failed"):
+            continue
+        status_label = "Passed LVT" if lvt_st == "passed" else "Failed LVT"
+        # Synthetic: only Passed
+        if lvt_st == "passed":
+            rows_synth.append((cid, tdr_id, status_label))
+        # Production: both Passed and Failed
+        rows_prod.append((cid, tdr_id, status_label))
 
-    insert_sql_path = output_dir / f"INSERT_BAN_MASTER_LIST_LVT_{ts}.sql"
+    synth_sql_path = output_dir / f"INSERT_BAN_MASTER_LIST_LVT_SYNTH_{ts}.sql"
+    prod_sql_path = output_dir / f"INSERT_BAN_MASTER_LIST_LVT_{ts}.sql"
     write_insert_sql_file(
-        rows_to_insert, owner, requestor, default_tdr_id,
-        insert_sql_path, table_name=BAN_MASTER_TABLE_SQL, log=log
+        rows_synth, owner, requestor, default_tdr_id,
+        synth_sql_path, table_name=BAN_MASTER_TABLE_SQL, log=log
     )
-    return report_excel, insert_sql_path, summary
+    write_insert_sql_file(
+        rows_prod, owner, requestor, default_tdr_id,
+        prod_sql_path, table_name=BAN_MASTER_TABLE_SQL, log=log
+    )
+    return report_excel, synth_sql_path, prod_sql_path, summary
 
 
 # ---------------------------------------------------------------------------
