@@ -51,32 +51,27 @@ def render_production():
     )
     tdr_only_clicked = st.button("Get TDR Customer List only", key="tdr_only_btn", type="secondary", help="Builds a single Excel with Customer ID, TDR Number, Excel File, Sheet Name — no LVT or full run.")
 
-    # TDR-only result: show message + download right below the TDR-only button (not below Run LVT TDR)
+    # TDR-only result: message + download directly under "Get TDR Customer List only" (always above Optional and Run)
     if "tdr_list_result" in st.session_state:
         r = st.session_state["tdr_list_result"]
-        with st.container():
-            st.markdown(
-                """
-                <div style="margin: 0.5rem 0 0.5rem 0; padding: 0.75rem 1rem; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; font-size: 0.9rem;">
-                    <strong style="color: #065f46;">TDR Customer List ready</strong> — download using the button below (no LVT or full run).
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            st.download_button(
-                "Download TDR Customer List (Excel)",
-                data=r["bytes"],
-                file_name=r.get("name", "TDR_Customer_List.xlsx"),
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="dl_tdr_list",
-            )
+        st.markdown(
+            """
+            <div style="margin: 0.5rem 0 0.25rem 0; padding: 0.75rem 1rem; background: #ecfdf5; border: 1px solid #059669; border-radius: 8px; font-size: 0.95rem;">
+                <strong style="color: #065f46;">✓ TDR Customer List ready</strong> — click the button below to download (no LVT or full run).
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.download_button(
+            "⬇ Download TDR Customer List (Excel)",
+            data=r["bytes"],
+            file_name=r.get("name", "TDR_Customer_List.xlsx"),
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="dl_tdr_list",
+            type="primary",
+            use_container_width=True,
+        )
         st.markdown("---")
-
-    with st.expander("**Optional – for INSERT SQL** (only if you need the download with custom values)"):
-        st.caption("Leave blank to still generate INSERT SQL with empty OWNER/REQUESTOR; use Default TDR for rows that are Found but have no TDR.")
-        owner = st.text_input("OWNER (for SQL)", value="", key="owner_prod")
-        requestor = st.text_input("REQUESTOR (for SQL)", value="", key="requestor_prod")
-        default_tdr = st.text_input("Default TDR for 'Found but no TDR' rows", value="", key="default_tdr_prod")
 
     # TDR data analysis only: no LVT, just data files → single-sheet TDR Customer List
     if tdr_only_clicked and run_tdr_list_only is not None:
@@ -145,6 +140,9 @@ def render_production():
                 log_lines = []
                 def log_fn(msg):
                     log_lines.append(msg)
+                owner = st.session_state.get("owner_prod", "") or ""
+                requestor = st.session_state.get("requestor_prod", "") or ""
+                default_tdr = st.session_state.get("default_tdr_prod", "") or ""
                 with st.spinner("Processing…"):
                     report_path, sql_synth_path, sql_prod_path, summary = run_lvt_tdr_from_paths(
                         lvt_path, data_paths, out_dir,
@@ -355,3 +353,10 @@ def render_production():
             </div>
             """
             st.markdown(tdr_html, unsafe_allow_html=True)
+
+    # Optional INSERT SQL — at end so TDR message + download stay above Run LVT TDR; always visible
+    with st.expander("**Optional – for INSERT SQL** (only if you need the download with custom values)"):
+        st.caption("Leave blank to still generate INSERT SQL with empty OWNER/REQUESTOR; use Default TDR for rows that are Found but have no TDR.")
+        st.text_input("OWNER (for SQL)", value="", key="owner_prod")
+        st.text_input("REQUESTOR (for SQL)", value="", key="requestor_prod")
+        st.text_input("Default TDR for 'Found but no TDR' rows", value="", key="default_tdr_prod")
