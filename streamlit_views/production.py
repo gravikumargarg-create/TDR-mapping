@@ -51,6 +51,27 @@ def render_production():
     )
     tdr_only_clicked = st.button("Get TDR Customer List only", key="tdr_only_btn", type="secondary", help="Builds a single Excel with Customer ID, TDR Number, Excel File, Sheet Name — no LVT or full run.")
 
+    # TDR-only result: show message + download right below the TDR-only button (not below Run LVT TDR)
+    if "tdr_list_result" in st.session_state:
+        r = st.session_state["tdr_list_result"]
+        with st.container():
+            st.markdown(
+                """
+                <div style="margin: 0.5rem 0 0.5rem 0; padding: 0.75rem 1rem; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; font-size: 0.9rem;">
+                    <strong style="color: #065f46;">TDR Customer List ready</strong> — download using the button below (no LVT or full run).
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.download_button(
+                "Download TDR Customer List (Excel)",
+                data=r["bytes"],
+                file_name=r.get("name", "TDR_Customer_List.xlsx"),
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="dl_tdr_list",
+            )
+        st.markdown("---")
+
     with st.expander("**Optional – for INSERT SQL** (only if you need the download with custom values)"):
         st.caption("Leave blank to still generate INSERT SQL with empty OWNER/REQUESTOR; use Default TDR for rows that are Found but have no TDR.")
         owner = st.text_input("OWNER (for SQL)", value="", key="owner_prod")
@@ -214,18 +235,6 @@ def render_production():
                     shutil.rmtree(tmpdir, ignore_errors=True)
                 except Exception:
                     pass
-
-    if "tdr_list_result" in st.session_state:
-        r = st.session_state["tdr_list_result"]
-        st.success("TDR-wise customer list ready — download below (no LVT or full run).")
-        st.download_button(
-            "Download TDR Customer List (Excel)",
-            data=r["bytes"],
-            file_name=r.get("name", "TDR_Customer_List.xlsx"),
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="dl_tdr_list",
-        )
-        st.markdown("---")
 
     if "lvt_result" in st.session_state:
         r = st.session_state["lvt_result"]
