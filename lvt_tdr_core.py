@@ -1125,7 +1125,7 @@ def run_lvt_tdr_from_paths(
     rows_prod = [r for r in rows_all if not cid_str(r[0]).startswith("960")]
 
     synth_sql_path = output_dir / f"INSERT_BAN_MASTER_LIST_LVT_SYNTH_{ts}.sql"
-    prod_sql_path = output_dir / f"INSERT_BAN_MASTER_LIST_LVT_{ts}.sql"
+    prod_sql_path = output_dir / f"INSERT_BAN_MASTER_LIST_LVT_PRODUCTION_{ts}.sql"
     write_insert_sql_file(
         rows_synth, owner, requestor, default_tdr_id,
         synth_sql_path, table_name=BAN_MASTER_TABLE_SQL, log=log

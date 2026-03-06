@@ -28,6 +28,8 @@ def _clear_view_state():
     elif st.session_state.portal_view == "production":
         st.session_state.pop("lvt_result", None)
         st.session_state.pop("tdr_list_result", None)
+        st.session_state.pop("cap_validation_result", None)
+        st.session_state.pop("cap_download", None)
 
 
 # ----- Back button in sidebar and sub-view content -----

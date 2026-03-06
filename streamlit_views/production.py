@@ -1,4 +1,5 @@
 """Production LVT TDR Delivery view – run from app.py when portal_view == 'production'."""
+import io
 import tempfile
 from pathlib import Path
 
@@ -9,6 +10,131 @@ try:
 except ImportError:
     run_lvt_tdr_from_paths = None
     run_tdr_list_only = None
+
+
+def _normalize_id(val):
+    """Normalize BAN/CUSTOMER_ID for comparison (strip, string, handle leading zeros)."""
+    if val is None:
+        return None
+    s = str(val).strip()
+    if not s:
+        return None
+    return s
+
+
+def _run_capability_validation(excel_bytes):
+    """
+    Compare QE_BAN_LIST BAN column with Device Details CUSTOMER_ID.
+    Returns (missing_bans_list, ban_sheet_name, device_sheet_name, wb) or (None, None, None, None) on error.
+    """
+    try:
+        from openpyxl import load_workbook
+    except ImportError:
+        return (None, None, None, None)
+    try:
+        wb = load_workbook(io.BytesIO(excel_bytes), data_only=True)
+    except Exception:
+        return (None, None, None, None)
+    # Find QE_BAN_LIST sheet (or first sheet with BAN column)
+    ban_sheet = None
+    for name in wb.sheetnames:
+        ws = wb[name]
+        if ws.max_row < 2:
+            continue
+        first_row = [ws.cell(1, c).value for c in range(1, min(ws.max_column + 1, 20))]
+        if any(first_row and str(x).strip().upper() == "BAN" for x in first_row):
+            ban_sheet = name
+            break
+    if ban_sheet is None:
+        return (None, None, None, None)
+    # Find Device Details sheet (or last sheet with CUSTOMER_ID)
+    device_sheet = None
+    for name in reversed(wb.sheetnames):
+        ws = wb[name]
+        if ws.max_row < 2:
+            continue
+        first_row = [ws.cell(1, c).value for c in range(1, min(ws.max_column + 1, 20))]
+        if any(first_row and "CUSTOMER_ID" in str(x).upper() for x in first_row):
+            device_sheet = name
+            break
+    if device_sheet is None:
+        return (None, None, None, None)
+    ws_ban = wb[ban_sheet]
+    ws_dev = wb[device_sheet]
+    # BAN column index (1-based)
+    ban_col = None
+    for c in range(1, ws_ban.max_column + 1):
+        if str(ws_ban.cell(1, c).value or "").strip().upper() == "BAN":
+            ban_col = c
+            break
+    if ban_col is None:
+        return (None, None, None, None)
+    customer_id_col = None
+    for c in range(1, ws_dev.max_column + 1):
+        if "CUSTOMER_ID" in str(ws_dev.cell(1, c).value or "").upper():
+            customer_id_col = c
+            break
+    if customer_id_col is None:
+        return (None, None, None, None)
+    bans_in_list = set()
+    for r in range(2, ws_ban.max_row + 1):
+        val = _normalize_id(ws_ban.cell(r, ban_col).value)
+        if val:
+            bans_in_list.add(val)
+    customer_ids = set()
+    for r in range(2, ws_dev.max_row + 1):
+        val = _normalize_id(ws_dev.cell(r, customer_id_col).value)
+        if val:
+            customer_ids.add(val)
+    missing = sorted(bans_in_list - customer_ids, key=lambda x: (len(x), x))
+    return (missing, ban_sheet, device_sheet, wb)
+
+
+def _capability_remove_rows(wb, ban_sheet_name, missing_bans_set):
+    """Remove rows from ban sheet where BAN is in missing_bans_set. Returns new workbook bytes."""
+    from openpyxl import load_workbook
+    ws = wb[ban_sheet_name]
+    ban_col = None
+    for c in range(1, ws.max_column + 1):
+        if str(ws.cell(1, c).value or "").strip().upper() == "BAN":
+            ban_col = c
+            break
+    if ban_col is None:
+        return None
+    rows_to_delete = []
+    for r in range(2, ws.max_row + 1):
+        val = _normalize_id(ws.cell(r, ban_col).value)
+        if val and val in missing_bans_set:
+            rows_to_delete.append(r)
+    for r in reversed(rows_to_delete):
+        ws.delete_rows(r, 1)
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf.getvalue()
+
+
+def _capability_highlight_rows(wb, ban_sheet_name, missing_bans_set):
+    """Highlight rows in ban sheet where BAN is in missing_bans_set. Returns new workbook bytes."""
+    from openpyxl.styles import PatternFill
+    ws = wb[ban_sheet_name]
+    ban_col = None
+    for c in range(1, ws.max_column + 1):
+        if str(ws.cell(1, c).value or "").strip().upper() == "BAN":
+            ban_col = c
+            break
+    if ban_col is None:
+        return None
+    red_fill = PatternFill(start_color="FFCCCB", end_color="FFCCCB", fill_type="solid")
+    for r in range(2, ws.max_row + 1):
+        val = _normalize_id(ws.cell(r, ban_col).value)
+        if val and val in missing_bans_set:
+            for c in range(1, ws.max_column + 1):
+                ws.cell(r, c).fill = red_fill
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf.getvalue()
 
 
 def render_production():
@@ -274,7 +400,7 @@ def render_production():
         with c2:
             if r.get("sql_synth_bytes"):
                 st.download_button(
-                    "INSERT SQL – synthetic (customer ID 960*)",
+                    "INSERT SQL – synthetic data",
                     data=r["sql_synth_bytes"],
                     file_name=r.get("sql_synth_name") or "INSERT_BAN_MASTER_LIST_LVT_SYNTH.sql",
                     mime="text/plain",
@@ -285,9 +411,9 @@ def render_production():
         with c3:
             if r.get("sql_prod_bytes"):
                 st.download_button(
-                    "INSERT SQL – production (all other customers)",
+                    "INSERT SQL – production data",
                     data=r["sql_prod_bytes"],
-                    file_name=r.get("sql_prod_name") or "INSERT_BAN_MASTER_LIST_LVT.sql",
+                    file_name=r.get("sql_prod_name") or "INSERT_BAN_MASTER_LIST_LVT_PRODUCTION.sql",
                     mime="text/plain",
                     key="dl_sql_prod",
                 )
@@ -378,3 +504,79 @@ def render_production():
             </div>
             """
             st.markdown(tdr_html, unsafe_allow_html=True)
+
+    # ----- Capability validation (at end of Production tab) -----
+    st.markdown("---")
+    st.markdown(
+        """
+        <div style="padding: 0.75rem 1rem; background: #f0fdfa; border: 1px solid #0d9488; border-radius: 8px; margin-bottom: 0.5rem;">
+            <strong style="color: #0f766e;">Capability validation</strong> — Upload the BAN list Excel (e.g. QE_MBL_BAN_LIST) with <b>QE_BAN_LIST</b> sheet (BAN column) and <b>Device Details</b> sheet (CUSTOMER_ID). We'll find BANs not in Device Details and let you remove or highlight them.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    cap_file = st.file_uploader("Upload BAN list Excel for capability validation", type=["xlsx", "xlsm"], key="cap_validation_file")
+    cap_run = st.button("Run capability validation", key="cap_validation_run", type="secondary")
+
+    if cap_run and cap_file and cap_file.size > 0:
+        excel_bytes = cap_file.getvalue()
+        with st.spinner("Comparing BAN list with Device Details…"):
+            missing, ban_sheet, device_sheet, wb = _run_capability_validation(excel_bytes)
+        if missing is None:
+            st.error("Could not run validation. Ensure the Excel has a sheet with a **BAN** column (e.g. QE_BAN_LIST) and a sheet with **CUSTOMER_ID** (e.g. Device Details).")
+        elif not missing:
+            st.success("All BANs in the BAN list are present in Device Details. No action needed.")
+        else:
+            st.session_state["cap_validation_result"] = {
+                "missing_bans": missing,
+                "ban_sheet": ban_sheet,
+                "device_sheet": device_sheet,
+                "excel_bytes": excel_bytes,
+                "original_name": cap_file.name,
+            }
+            st.rerun()
+
+    if "cap_validation_result" in st.session_state:
+        r = st.session_state["cap_validation_result"]
+        missing = r["missing_bans"]
+        st.warning(f"**{len(missing)} BAN(s)** in the BAN list are **not** in Device Details sheet.")
+        with st.expander("View BANs not in Device Details", expanded=True):
+            st.write(", ".join(missing[:50]))
+            if len(missing) > 50:
+                st.caption(f"… and {len(missing) - 50} more.")
+        st.markdown("**Choose an action:**")
+        col_remove, col_highlight = st.columns(2)
+        with col_remove:
+            if st.button("Remove these from BAN list and download", key="cap_remove_btn", type="primary", use_container_width=True):
+                from openpyxl import load_workbook
+                wb = load_workbook(io.BytesIO(r["excel_bytes"]), data_only=True)
+                missing_set = set(missing)
+                out_bytes = _capability_remove_rows(wb, r["ban_sheet"], missing_set)
+                if out_bytes:
+                    base = Path(r["original_name"]).stem
+                    st.session_state["cap_download"] = {"bytes": out_bytes, "name": f"{base}_BANs_removed.xlsx"}
+                    st.rerun()
+        with col_highlight:
+            if st.button("Highlight rows and download", key="cap_highlight_btn", type="secondary", use_container_width=True):
+                from openpyxl import load_workbook
+                wb = load_workbook(io.BytesIO(r["excel_bytes"]), data_only=True)
+                missing_set = set(missing)
+                out_bytes = _capability_highlight_rows(wb, r["ban_sheet"], missing_set)
+                if out_bytes:
+                    base = Path(r["original_name"]).stem
+                    st.session_state["cap_download"] = {"bytes": out_bytes, "name": f"{base}_highlighted.xlsx"}
+                    st.rerun()
+        if st.button("Clear result", key="cap_clear_btn"):
+            st.session_state.pop("cap_validation_result", None)
+            st.session_state.pop("cap_download", None)
+            st.rerun()
+
+    if "cap_download" in st.session_state:
+        d = st.session_state["cap_download"]
+        st.download_button(
+            "⬇ Download modified Excel",
+            data=d["bytes"],
+            file_name=d["name"],
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="cap_dl_btn",
+        )
