@@ -5,9 +5,10 @@ from pathlib import Path
 import streamlit as st
 
 try:
-    from lvt_tdr_core import run_lvt_tdr_from_paths
+    from lvt_tdr_core import run_lvt_tdr_from_paths, run_tdr_list_only
 except ImportError:
     run_lvt_tdr_from_paths = None
+    run_tdr_list_only = None
 
 
 def render_production():
@@ -38,7 +39,11 @@ def render_production():
     lvt_sheet = st.text_input("LVT sheet name", value="BAN Wise Result", key="lvt_sheet_prod")
 
     st.markdown("**2. Data Excel files** (all non-LVT Excel files; TDR data, Rate Plan, etc.)")
-    data_files = st.file_uploader("Data Excel files (multiple)", type=["xlsx", "xlsm"], accept_multiple_files=True, key="data_prod")
+    tdr_only_col, upload_col = st.columns([1, 3])
+    with tdr_only_col:
+        tdr_only_clicked = st.button("TDR data analysis only", key="tdr_only_btn", help="Upload data files (right), then click here to get only TDR-wise customer list (no LVT or full run).")
+    with upload_col:
+        data_files = st.file_uploader("Data Excel files (multiple)", type=["xlsx", "xlsm"], accept_multiple_files=True, key="data_prod")
 
     with st.expander("**Optional – for INSERT SQL** (only if you need the download with custom values)"):
         st.caption("Leave blank to still generate INSERT SQL with empty OWNER/REQUESTOR; use Default TDR for rows that are Found but have no TDR.")
@@ -46,11 +51,52 @@ def render_production():
         requestor = st.text_input("REQUESTOR (for SQL)", value="", key="requestor_prod")
         default_tdr = st.text_input("Default TDR for 'Found but no TDR' rows", value="", key="default_tdr_prod")
 
+    # TDR data analysis only: no LVT, just data files → single-sheet TDR Customer List
+    if tdr_only_clicked and run_tdr_list_only is not None:
+        if not data_files or all(f.size == 0 for f in data_files):
+            st.warning("Upload at least one **data Excel** file, then click **TDR data analysis only**.")
+        else:
+            tmpdir = Path(tempfile.mkdtemp(prefix="tdr_list_streamlit_"))
+            try:
+                data_paths = []
+                for i, uf in enumerate(data_files):
+                    if uf.size == 0:
+                        continue
+                    name = uf.name or f"data_{i}.xlsx"
+                    p = tmpdir / name
+                    p.write_bytes(uf.getvalue())
+                    data_paths.append(p)
+                out_path = tmpdir / "TDR_Customer_List.xlsx"
+                log_lines = []
+                def log_fn(msg):
+                    log_lines.append(msg)
+                with st.spinner("Building TDR-wise customer list…"):
+                    result_path = run_tdr_list_only(data_paths, out_path, log_fn=log_fn)
+                if result_path and result_path.is_file():
+                    st.session_state["tdr_list_result"] = {
+                        "bytes": result_path.read_bytes(),
+                        "name": result_path.name,
+                    }
+                    st.success("TDR Customer List ready — download below.")
+                else:
+                    st.warning("No customer IDs found in the data files.")
+            except Exception as e:
+                st.exception(e)
+            finally:
+                try:
+                    import shutil
+                    shutil.rmtree(tmpdir, ignore_errors=True)
+                except Exception:
+                    pass
+    if tdr_only_clicked and run_tdr_list_only is None:
+        st.error("Could not load TDR list module.")
+
     run = st.button("Run LVT TDR", type="primary")
 
     if run and run_lvt_tdr_from_paths is None:
         st.error("Could not load LVT TDR module. Ensure lvt_tdr_core.py is in the app folder.")
     elif run:
+        st.session_state.pop("tdr_list_result", None)  # clear TDR-only result when doing full run
         if not lvt_file or lvt_file.size == 0:
             st.warning("Please upload the **LVT Excel** file.")
         elif not data_files or all(f.size == 0 for f in data_files):
@@ -162,6 +208,18 @@ def render_production():
                     shutil.rmtree(tmpdir, ignore_errors=True)
                 except Exception:
                     pass
+
+    if "tdr_list_result" in st.session_state:
+        r = st.session_state["tdr_list_result"]
+        st.success("TDR-wise customer list ready — download below (no LVT or full run).")
+        st.download_button(
+            "Download TDR Customer List (Excel)",
+            data=r["bytes"],
+            file_name=r.get("name", "TDR_Customer_List.xlsx"),
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="dl_tdr_list",
+        )
+        st.markdown("---")
 
     if "lvt_result" in st.session_state:
         r = st.session_state["lvt_result"]

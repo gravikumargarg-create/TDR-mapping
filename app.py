@@ -27,6 +27,7 @@ def _clear_view_state():
             st.session_state.pop(key, None)
     elif st.session_state.portal_view == "production":
         st.session_state.pop("lvt_result", None)
+        st.session_state.pop("tdr_list_result", None)
 
 
 # ----- Back button and sub-view content -----

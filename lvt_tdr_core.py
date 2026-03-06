@@ -878,6 +878,74 @@ def write_mapping_excel(merged, output_path, lvt_status=None, tdr_list_dict=None
     return output_path
 
 
+def write_tdr_list_only_excel(tdr_list_all_rows, output_path):
+    """Write a single-sheet Excel with TDR Customer List (Customer ID, TDR Number, Excel File, Sheet Name)."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Border, Side
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "TDR Customer List"
+    list_headers = ["Customer ID", "TDR Number", "Excel File", "Sheet Name"]
+    thin = Border(
+        left=Side(style="thin"), right=Side(style="thin"),
+        top=Side(style="thin"), bottom=Side(style="thin")
+    )
+    header_fill = PatternFill(start_color="2F5496", end_color="2F5496", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    ws.append(list_headers)
+    for c in range(1, len(list_headers) + 1):
+        cell = ws.cell(row=1, column=c, value=list_headers[c - 1])
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = thin
+    def _row_key(item):
+        cid, tdr_val, src = item
+        if " | " in src:
+            excel_file, sheet_name = src.split(" | ", 1)
+        else:
+            excel_file, sheet_name = src, ""
+        return (excel_file, sheet_name, cid)
+    for i, (cid, tdr_val, source_label) in enumerate(sorted(tdr_list_all_rows, key=_row_key), start=2):
+        if " | " in source_label:
+            excel_file, sheet_name = source_label.split(" | ", 1)
+        else:
+            excel_file, sheet_name = source_label, ""
+        row = [cid, tdr_val, excel_file, sheet_name]
+        ws.append(row)
+        for c in range(1, len(row) + 1):
+            ws.cell(row=i, column=c).border = thin
+    _auto_column_widths(ws)
+    wb.save(output_path)
+    return output_path
+
+
+def run_tdr_list_only(data_paths, output_path, log_fn=None):
+    """
+    TDR data analysis only: extract customer IDs + TDR from data files and write a single-sheet
+    Excel (TDR Customer List). No LVT, no mapping, no INSERT SQL.
+    Returns path to the written Excel, or None if no data.
+    """
+    log = log_fn or (lambda msg: None)
+    data_paths = [Path(p) for p in data_paths if Path(p).is_file()]
+    if not data_paths:
+        log("No data files.")
+        return None
+    base = data_paths[0].parent
+    treat_tdr = {Path(p).name for p in data_paths}
+    tdr_list_dict, tdr_list_all_rows = extract_all_customer_tdr_from_files(
+        data_paths, base, treat_as_tdr=treat_tdr, log_fn=log
+    )
+    if not tdr_list_all_rows:
+        log("No customer IDs extracted from the data files.")
+        return None
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_tdr_list_only_excel(tdr_list_all_rows, output_path)
+    log(f"TDR Customer List: {len(tdr_list_all_rows)} rows written.")
+    return output_path
+
+
 # ---------------------------------------------------------------------------
 # Step 4: Generate INSERT SQL file (no DB); table name in SQL = BAN_MASTER_TABLE_SQL
 # ---------------------------------------------------------------------------
