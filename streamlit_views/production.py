@@ -39,11 +39,11 @@ def render_production():
     lvt_sheet = st.text_input("LVT sheet name", value="BAN Wise Result", key="lvt_sheet_prod")
 
     st.markdown("**2. Data Excel files** (all non-LVT Excel files; TDR data, Rate Plan, etc.)")
-    tdr_only_col, upload_col = st.columns([1, 3])
-    with tdr_only_col:
-        tdr_only_clicked = st.button("TDR data analysis only", key="tdr_only_btn", help="Upload data files (right), then click here to get only TDR-wise customer list (no LVT or full run).")
+    upload_col, tdr_only_col = st.columns([3, 1])
     with upload_col:
         data_files = st.file_uploader("Data Excel files (multiple)", type=["xlsx", "xlsm"], accept_multiple_files=True, key="data_prod")
+    with tdr_only_col:
+        tdr_only_clicked = st.button("TDR data analysis only", key="tdr_only_btn", help="Upload data files (left), then click here to get only TDR-wise customer list (no LVT or full run).")
 
     with st.expander("**Optional – for INSERT SQL** (only if you need the download with custom values)"):
         st.caption("Leave blank to still generate INSERT SQL with empty OWNER/REQUESTOR; use Default TDR for rows that are Found but have no TDR.")
