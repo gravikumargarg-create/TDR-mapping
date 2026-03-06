@@ -271,7 +271,7 @@ def render_production():
     st.markdown(
         """
         <div style="padding: 0.75rem 1rem; background: #f0fdfa; border: 1px solid #0d9488; border-radius: 8px; margin-bottom: 0.5rem;">
-            <strong style="color: #0f766e;">Capability validation</strong> — Upload the BAN list Excel (e.g. QE_MBL_BAN_LIST) with <b>QE_BAN_LIST</b> sheet (BAN column) and <b>Device Details</b> sheet (CUSTOMER_ID). We'll find BANs not in Device Details and let you remove or highlight them.
+            <strong style="color: #0f766e;">Capability validation</strong> <span style="font-size: 0.7rem; color: #64748b;">(click either button to download)</span> — Upload the BAN list Excel (e.g. QE_MBL_BAN_LIST) with <b>QE_BAN_LIST</b> sheet (BAN column) and <b>Device Details</b> sheet (CUSTOMER_ID). We'll find BANs not in Device Details; then use <b>Remove from BAN list and download</b> or <b>Highlight rows and download</b>.
         </div>
         """,
         unsafe_allow_html=True,
