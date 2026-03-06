@@ -28,90 +28,103 @@ def render_production():
         """
         <div style="background: linear-gradient(90deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%); color: #fff; padding: 18px 20px; border-radius: 10px; margin-bottom: 12px; text-align: center;">
             <div style="font-size: 1.25rem; font-weight: 700;">LVT TDR Delivery (Production data)</div>
-            <div style="font-size: 0.75rem; opacity: 0.95;">Upload LVT report + data Excel files → report + INSERT SQL (no DB connection).</div>
+            <div style="font-size: 0.75rem; opacity: 0.95;">Choose your option below, then upload files and run.</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
+    mode = st.radio(
+        "**What do you want to do?**",
+        options=["full", "tdr_only"],
+        format_func=lambda x: (
+            "Full bulk loading (LVT + data → report + INSERT SQL)"
+            if x == "full"
+            else "Only TDR customer list analysis (data files → TDR-wise list)"
+        ),
+        key="production_mode",
+        horizontal=True,
+    )
+    # Clear the other mode's result when switching
+    if mode == "full" and "tdr_list_result" in st.session_state:
+        st.session_state.pop("tdr_list_result", None)
+    elif mode == "tdr_only" and "lvt_result" in st.session_state:
+        st.session_state.pop("lvt_result", None)
+
+    st.markdown("---")
+
+    if mode == "tdr_only":
+        # ----- Only TDR customer list analysis -----
+        st.markdown("**Upload data Excel files** (TDR data, Rate Plan, etc. — no LVT needed)")
+        data_files = st.file_uploader("Data Excel files (multiple)", type=["xlsx", "xlsm"], accept_multiple_files=True, key="data_prod")
+        tdr_only_clicked = st.button("Get TDR Customer List", key="tdr_only_btn", type="primary", use_container_width=True)
+
+        if tdr_only_clicked and run_tdr_list_only is not None:
+            if not data_files or all(f.size == 0 for f in data_files):
+                st.warning("Upload at least one **data Excel** file, then click **Get TDR Customer List**.")
+            else:
+                tmpdir = Path(tempfile.mkdtemp(prefix="tdr_list_streamlit_"))
+                try:
+                    data_paths = []
+                    for i, uf in enumerate(data_files):
+                        if uf.size == 0:
+                            continue
+                        name = uf.name or f"data_{i}.xlsx"
+                        p = tmpdir / name
+                        p.write_bytes(uf.getvalue())
+                        data_paths.append(p)
+                    out_path = tmpdir / "TDR_Customer_List.xlsx"
+                    log_lines = []
+                    def log_fn(msg):
+                        log_lines.append(msg)
+                    with st.spinner("Building TDR-wise customer list…"):
+                        result_path = run_tdr_list_only(data_paths, out_path, log_fn=log_fn)
+                    if result_path and result_path.is_file():
+                        st.session_state["tdr_list_result"] = {
+                            "bytes": result_path.read_bytes(),
+                            "name": result_path.name,
+                        }
+                        st.rerun()
+                    else:
+                        st.warning("No customer IDs found in the data files.")
+                except Exception as e:
+                    st.exception(e)
+                finally:
+                    try:
+                        import shutil
+                        shutil.rmtree(tmpdir, ignore_errors=True)
+                    except Exception:
+                        pass
+        if tdr_only_clicked and run_tdr_list_only is None:
+            st.error("Could not load TDR list module.")
+
+        if "tdr_list_result" in st.session_state:
+            r = st.session_state["tdr_list_result"]
+            st.success("TDR Customer List ready — download below.")
+            st.download_button(
+                "⬇ Download TDR Customer List (Excel)",
+                data=r["bytes"],
+                file_name=r.get("name", "TDR_Customer_List.xlsx"),
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="dl_tdr_list",
+                type="primary",
+                use_container_width=True,
+            )
+        return
+
+    # ----- Full bulk loading -----
     st.markdown("**1. LVT report** (Excel with BAN/customer IDs and Pass/Fail status)")
     lvt_file = st.file_uploader("LVT Excel", type=["xlsx", "xlsm"], key="lvt_prod")
     lvt_sheet = st.text_input("LVT sheet name", value="BAN Wise Result", key="lvt_sheet_prod")
 
     st.markdown("**2. Data Excel files** (all non-LVT Excel files; TDR data, Rate Plan, etc.)")
     data_files = st.file_uploader("Data Excel files (multiple)", type=["xlsx", "xlsm"], accept_multiple_files=True, key="data_prod")
-    # Optional: TDR-wise customer list only (no LVT) — below uploader so Browse stays in place
-    st.markdown(
-        """
-        <div style="margin-top: 0.5rem; padding: 0.6rem 0.75rem; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.9rem; color: #64748b;">
-            Only need TDR-wise customer list (no LVT)? Upload files above, then use the button below.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    tdr_only_clicked = st.button("Get TDR Customer List only", key="tdr_only_btn", type="secondary", help="Builds a single Excel with Customer ID, TDR Number, Excel File, Sheet Name — no LVT or full run.")
 
-    # TDR-only result: message + download directly under "Get TDR Customer List only" (always above Optional and Run)
-    if "tdr_list_result" in st.session_state:
-        r = st.session_state["tdr_list_result"]
-        st.markdown(
-            """
-            <div style="margin: 0.5rem 0 0.25rem 0; padding: 0.75rem 1rem; background: #ecfdf5; border: 1px solid #059669; border-radius: 8px; font-size: 0.95rem;">
-                <strong style="color: #065f46;">✓ TDR Customer List ready</strong> — click the button below to download (no LVT or full run).
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.download_button(
-            "⬇ Download TDR Customer List (Excel)",
-            data=r["bytes"],
-            file_name=r.get("name", "TDR_Customer_List.xlsx"),
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="dl_tdr_list",
-            type="primary",
-            use_container_width=True,
-        )
-        st.markdown("---")
-
-    # TDR data analysis only: no LVT, just data files → single-sheet TDR Customer List
-    if tdr_only_clicked and run_tdr_list_only is not None:
-        if not data_files or all(f.size == 0 for f in data_files):
-            st.warning("Upload at least one **data Excel** file, then click **TDR data analysis only**.")
-        else:
-            tmpdir = Path(tempfile.mkdtemp(prefix="tdr_list_streamlit_"))
-            try:
-                data_paths = []
-                for i, uf in enumerate(data_files):
-                    if uf.size == 0:
-                        continue
-                    name = uf.name or f"data_{i}.xlsx"
-                    p = tmpdir / name
-                    p.write_bytes(uf.getvalue())
-                    data_paths.append(p)
-                out_path = tmpdir / "TDR_Customer_List.xlsx"
-                log_lines = []
-                def log_fn(msg):
-                    log_lines.append(msg)
-                with st.spinner("Building TDR-wise customer list…"):
-                    result_path = run_tdr_list_only(data_paths, out_path, log_fn=log_fn)
-                if result_path and result_path.is_file():
-                    st.session_state["tdr_list_result"] = {
-                        "bytes": result_path.read_bytes(),
-                        "name": result_path.name,
-                    }
-                    st.success("TDR Customer List ready — download below.")
-                else:
-                    st.warning("No customer IDs found in the data files.")
-            except Exception as e:
-                st.exception(e)
-            finally:
-                try:
-                    import shutil
-                    shutil.rmtree(tmpdir, ignore_errors=True)
-                except Exception:
-                    pass
-    if tdr_only_clicked and run_tdr_list_only is None:
-        st.error("Could not load TDR list module.")
+    with st.expander("**Optional – for INSERT SQL** (only if you need custom OWNER/REQUESTOR/Default TDR)"):
+        st.caption("Leave blank to still generate INSERT SQL with empty OWNER/REQUESTOR; use Default TDR for rows that are Found but have no TDR.")
+        st.text_input("OWNER (for SQL)", value="", key="owner_prod")
+        st.text_input("REQUESTOR (for SQL)", value="", key="requestor_prod")
+        st.text_input("Default TDR for 'Found but no TDR' rows", value="", key="default_tdr_prod")
 
     run = st.button("Run LVT TDR", type="primary")
 
@@ -353,10 +366,3 @@ def render_production():
             </div>
             """
             st.markdown(tdr_html, unsafe_allow_html=True)
-
-    # Optional INSERT SQL — at end so TDR message + download stay above Run LVT TDR; always visible
-    with st.expander("**Optional – for INSERT SQL** (only if you need the download with custom values)"):
-        st.caption("Leave blank to still generate INSERT SQL with empty OWNER/REQUESTOR; use Default TDR for rows that are Found but have no TDR.")
-        st.text_input("OWNER (for SQL)", value="", key="owner_prod")
-        st.text_input("REQUESTOR (for SQL)", value="", key="requestor_prod")
-        st.text_input("Default TDR for 'Found but no TDR' rows", value="", key="default_tdr_prod")
