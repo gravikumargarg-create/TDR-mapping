@@ -305,42 +305,41 @@ def render_production():
             st.write(", ".join(missing[:50]))
             if len(missing) > 50:
                 st.caption(f"… and {len(missing) - 50} more.")
-        st.markdown("**Choose an action:**")
+        st.markdown("**Choose an action — click to download:**")
+        base = Path(r["original_name"]).stem
+        # Pre-compute both files once and cache (so we don't recompute every rerun)
+        _cache_key = (r["original_name"], len(missing))
+        if "cap_removed_bytes" not in st.session_state or st.session_state.get("cap_validation_key") != _cache_key:
+            from openpyxl import load_workbook
+            wb_rem = load_workbook(io.BytesIO(r["excel_bytes"]), data_only=True)
+            wb_hi = load_workbook(io.BytesIO(r["excel_bytes"]), data_only=True)
+            missing_set = set(missing)
+            st.session_state["cap_removed_bytes"] = _capability_remove_rows(wb_rem, r["ban_sheet"], missing_set)
+            st.session_state["cap_highlighted_bytes"] = _capability_highlight_rows(wb_hi, r["ban_sheet"], missing_set)
+            st.session_state["cap_validation_key"] = _cache_key
         col_remove, col_highlight = st.columns(2)
         with col_remove:
-            if st.button("Remove these from BAN list and download", key="cap_remove_btn", type="primary", use_container_width=True):
-                from openpyxl import load_workbook
-                wb = load_workbook(io.BytesIO(r["excel_bytes"]), data_only=True)
-                missing_set = set(missing)
-                out_bytes = _capability_remove_rows(wb, r["ban_sheet"], missing_set)
-                if out_bytes:
-                    base = Path(r["original_name"]).stem
-                    st.session_state["cap_download"] = {"bytes": out_bytes, "name": f"{base}_BANs_removed.xlsx"}
-                    st.rerun()
+            if st.session_state.get("cap_removed_bytes"):
+                st.download_button(
+                    "Remove from BAN list and download",
+                    data=st.session_state["cap_removed_bytes"],
+                    file_name=f"{base}_BANs_removed.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="cap_dl_removed",
+                    type="primary",
+                    use_container_width=True,
+                )
         with col_highlight:
-            if st.button("Highlight rows and download", key="cap_highlight_btn", type="secondary", use_container_width=True):
-                from openpyxl import load_workbook
-                wb = load_workbook(io.BytesIO(r["excel_bytes"]), data_only=True)
-                missing_set = set(missing)
-                out_bytes = _capability_highlight_rows(wb, r["ban_sheet"], missing_set)
-                if out_bytes:
-                    base = Path(r["original_name"]).stem
-                    st.session_state["cap_download"] = {"bytes": out_bytes, "name": f"{base}_highlighted.xlsx"}
-                    st.rerun()
-        if st.button("Clear result", key="cap_clear_btn"):
-            st.session_state.pop("cap_validation_result", None)
-            st.session_state.pop("cap_download", None)
-            st.rerun()
-
-    if "cap_download" in st.session_state:
-        d = st.session_state["cap_download"]
-        st.download_button(
-            "⬇ Download modified Excel",
-            data=d["bytes"],
-            file_name=d["name"],
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="cap_dl_btn",
-        )
+            if st.session_state.get("cap_highlighted_bytes"):
+                st.download_button(
+                    "Highlight rows and download",
+                    data=st.session_state["cap_highlighted_bytes"],
+                    file_name=f"{base}_highlighted.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="cap_dl_highlighted",
+                    type="secondary",
+                    use_container_width=True,
+                )
 
     if run and run_lvt_tdr_from_paths is None:
         st.error("Could not load LVT TDR module. Ensure lvt_tdr_core.py is in the app folder.")
