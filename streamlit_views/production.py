@@ -57,10 +57,14 @@ def render_production():
         # ----- Only TDR customer list analysis (separate uploader key so switching to full starts empty) -----
         st.markdown("**Upload data Excel files** (TDR data, Rate Plan, etc. — no LVT needed)")
         _tdr_clear = st.session_state.get("data_clear_tdr", 0)
-        data_files = st.file_uploader("Data Excel files (multiple)", type=["xlsx", "xlsm"], accept_multiple_files=True, key=f"data_prod_tdr_{_tdr_clear}")
-        if st.button("Clear data files", key="clear_tdr_btn", type="secondary", help="Remove all data files and start over"):
-            st.session_state["data_clear_tdr"] = _tdr_clear + 1
-            st.rerun()
+        col_upload_tdr, col_clear_tdr = st.columns([3, 1])
+        with col_upload_tdr:
+            data_files = st.file_uploader("Data Excel files (multiple)", type=["xlsx", "xlsm"], accept_multiple_files=True, key=f"data_prod_tdr_{_tdr_clear}")
+        with col_clear_tdr:
+            st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+            if st.button("Clear data files", key="clear_tdr_btn", type="secondary", use_container_width=True, help="Remove all data files and start over"):
+                st.session_state["data_clear_tdr"] = _tdr_clear + 1
+                st.rerun()
         tdr_only_clicked = st.button("Get TDR Customer List", key="tdr_only_btn", type="primary", use_container_width=True)
 
         if tdr_only_clicked and run_tdr_list_only is not None:
@@ -123,10 +127,14 @@ def render_production():
 
     st.markdown("**2. Data Excel files** (all non-LVT Excel files; TDR data, Rate Plan, etc.)")
     _full_clear = st.session_state.get("data_clear_full", 0)
-    data_files = st.file_uploader("Data Excel files (multiple)", type=["xlsx", "xlsm"], accept_multiple_files=True, key=f"data_prod_full_{_full_clear}")
-    if st.button("Clear data files", key="clear_full_btn", type="secondary", help="Remove all data files and upload different ones"):
-        st.session_state["data_clear_full"] = _full_clear + 1
-        st.rerun()
+    col_upload, col_clear = st.columns([3, 1])
+    with col_upload:
+        data_files = st.file_uploader("Data Excel files (multiple)", type=["xlsx", "xlsm"], accept_multiple_files=True, key=f"data_prod_full_{_full_clear}")
+    with col_clear:
+        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)  # align with uploader row
+        if st.button("Clear data files", key="clear_full_btn", type="secondary", use_container_width=True, help="Remove all data files and upload different ones"):
+            st.session_state["data_clear_full"] = _full_clear + 1
+            st.rerun()
 
     with st.expander("**Optional – for INSERT SQL** (only if you need custom OWNER/REQUESTOR/Default TDR)"):
         st.caption("Leave blank to still generate INSERT SQL with empty OWNER/REQUESTOR; use Default TDR for rows that are Found but have no TDR.")
