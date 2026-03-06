@@ -30,12 +30,13 @@ def _clear_view_state():
         st.session_state.pop("tdr_list_result", None)
 
 
-# ----- Back button and sub-view content -----
+# ----- Back button in sidebar and sub-view content -----
 if st.session_state.portal_view != "portal":
-    if st.button("← Back to TDR Portal", key="back_to_portal", type="secondary"):
-        _clear_view_state()
-        st.session_state.portal_view = "portal"
-        st.rerun()
+    with st.sidebar:
+        if st.button("← Back to TDR Portal", key="back_to_portal", type="secondary", use_container_width=True):
+            _clear_view_state()
+            st.session_state.portal_view = "portal"
+            st.rerun()
 
     if st.session_state.portal_view == "synthetic":
         from streamlit_views.synthetic import render_synthetic
