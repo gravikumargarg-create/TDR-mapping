@@ -266,6 +266,82 @@ def render_production():
 
     run = st.button("Run LVT TDR", type="primary")
 
+    # ----- Capability validation (visible right below Run LVT TDR) -----
+    st.markdown("---")
+    st.markdown(
+        """
+        <div style="padding: 0.75rem 1rem; background: #f0fdfa; border: 1px solid #0d9488; border-radius: 8px; margin-bottom: 0.5rem;">
+            <strong style="color: #0f766e;">Capability validation</strong> — Upload the BAN list Excel (e.g. QE_MBL_BAN_LIST) with <b>QE_BAN_LIST</b> sheet (BAN column) and <b>Device Details</b> sheet (CUSTOMER_ID). We'll find BANs not in Device Details and let you remove or highlight them.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    cap_file = st.file_uploader("Upload BAN list Excel for capability validation", type=["xlsx", "xlsm"], key="cap_validation_file")
+    cap_run = st.button("Run capability validation", key="cap_validation_run", type="secondary")
+
+    if cap_run and cap_file and cap_file.size > 0:
+        excel_bytes = cap_file.getvalue()
+        with st.spinner("Comparing BAN list with Device Details…"):
+            missing, ban_sheet, device_sheet, wb = _run_capability_validation(excel_bytes)
+        if missing is None:
+            st.error("Could not run validation. Ensure the Excel has a sheet with a **BAN** column (e.g. QE_BAN_LIST) and a sheet with **CUSTOMER_ID** (e.g. Device Details).")
+        elif not missing:
+            st.success("All BANs in the BAN list are present in Device Details. No action needed.")
+        else:
+            st.session_state["cap_validation_result"] = {
+                "missing_bans": missing,
+                "ban_sheet": ban_sheet,
+                "device_sheet": device_sheet,
+                "excel_bytes": excel_bytes,
+                "original_name": cap_file.name,
+            }
+            st.rerun()
+
+    if "cap_validation_result" in st.session_state:
+        r = st.session_state["cap_validation_result"]
+        missing = r["missing_bans"]
+        st.warning(f"**{len(missing)} BAN(s)** in the BAN list are **not** in Device Details sheet.")
+        with st.expander("View BANs not in Device Details", expanded=True):
+            st.write(", ".join(missing[:50]))
+            if len(missing) > 50:
+                st.caption(f"… and {len(missing) - 50} more.")
+        st.markdown("**Choose an action:**")
+        col_remove, col_highlight = st.columns(2)
+        with col_remove:
+            if st.button("Remove these from BAN list and download", key="cap_remove_btn", type="primary", use_container_width=True):
+                from openpyxl import load_workbook
+                wb = load_workbook(io.BytesIO(r["excel_bytes"]), data_only=True)
+                missing_set = set(missing)
+                out_bytes = _capability_remove_rows(wb, r["ban_sheet"], missing_set)
+                if out_bytes:
+                    base = Path(r["original_name"]).stem
+                    st.session_state["cap_download"] = {"bytes": out_bytes, "name": f"{base}_BANs_removed.xlsx"}
+                    st.rerun()
+        with col_highlight:
+            if st.button("Highlight rows and download", key="cap_highlight_btn", type="secondary", use_container_width=True):
+                from openpyxl import load_workbook
+                wb = load_workbook(io.BytesIO(r["excel_bytes"]), data_only=True)
+                missing_set = set(missing)
+                out_bytes = _capability_highlight_rows(wb, r["ban_sheet"], missing_set)
+                if out_bytes:
+                    base = Path(r["original_name"]).stem
+                    st.session_state["cap_download"] = {"bytes": out_bytes, "name": f"{base}_highlighted.xlsx"}
+                    st.rerun()
+        if st.button("Clear result", key="cap_clear_btn"):
+            st.session_state.pop("cap_validation_result", None)
+            st.session_state.pop("cap_download", None)
+            st.rerun()
+
+    if "cap_download" in st.session_state:
+        d = st.session_state["cap_download"]
+        st.download_button(
+            "⬇ Download modified Excel",
+            data=d["bytes"],
+            file_name=d["name"],
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="cap_dl_btn",
+        )
+
     if run and run_lvt_tdr_from_paths is None:
         st.error("Could not load LVT TDR module. Ensure lvt_tdr_core.py is in the app folder.")
     elif run:
@@ -504,79 +580,3 @@ def render_production():
             </div>
             """
             st.markdown(tdr_html, unsafe_allow_html=True)
-
-    # ----- Capability validation (at end of Production tab) -----
-    st.markdown("---")
-    st.markdown(
-        """
-        <div style="padding: 0.75rem 1rem; background: #f0fdfa; border: 1px solid #0d9488; border-radius: 8px; margin-bottom: 0.5rem;">
-            <strong style="color: #0f766e;">Capability validation</strong> — Upload the BAN list Excel (e.g. QE_MBL_BAN_LIST) with <b>QE_BAN_LIST</b> sheet (BAN column) and <b>Device Details</b> sheet (CUSTOMER_ID). We'll find BANs not in Device Details and let you remove or highlight them.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    cap_file = st.file_uploader("Upload BAN list Excel for capability validation", type=["xlsx", "xlsm"], key="cap_validation_file")
-    cap_run = st.button("Run capability validation", key="cap_validation_run", type="secondary")
-
-    if cap_run and cap_file and cap_file.size > 0:
-        excel_bytes = cap_file.getvalue()
-        with st.spinner("Comparing BAN list with Device Details…"):
-            missing, ban_sheet, device_sheet, wb = _run_capability_validation(excel_bytes)
-        if missing is None:
-            st.error("Could not run validation. Ensure the Excel has a sheet with a **BAN** column (e.g. QE_BAN_LIST) and a sheet with **CUSTOMER_ID** (e.g. Device Details).")
-        elif not missing:
-            st.success("All BANs in the BAN list are present in Device Details. No action needed.")
-        else:
-            st.session_state["cap_validation_result"] = {
-                "missing_bans": missing,
-                "ban_sheet": ban_sheet,
-                "device_sheet": device_sheet,
-                "excel_bytes": excel_bytes,
-                "original_name": cap_file.name,
-            }
-            st.rerun()
-
-    if "cap_validation_result" in st.session_state:
-        r = st.session_state["cap_validation_result"]
-        missing = r["missing_bans"]
-        st.warning(f"**{len(missing)} BAN(s)** in the BAN list are **not** in Device Details sheet.")
-        with st.expander("View BANs not in Device Details", expanded=True):
-            st.write(", ".join(missing[:50]))
-            if len(missing) > 50:
-                st.caption(f"… and {len(missing) - 50} more.")
-        st.markdown("**Choose an action:**")
-        col_remove, col_highlight = st.columns(2)
-        with col_remove:
-            if st.button("Remove these from BAN list and download", key="cap_remove_btn", type="primary", use_container_width=True):
-                from openpyxl import load_workbook
-                wb = load_workbook(io.BytesIO(r["excel_bytes"]), data_only=True)
-                missing_set = set(missing)
-                out_bytes = _capability_remove_rows(wb, r["ban_sheet"], missing_set)
-                if out_bytes:
-                    base = Path(r["original_name"]).stem
-                    st.session_state["cap_download"] = {"bytes": out_bytes, "name": f"{base}_BANs_removed.xlsx"}
-                    st.rerun()
-        with col_highlight:
-            if st.button("Highlight rows and download", key="cap_highlight_btn", type="secondary", use_container_width=True):
-                from openpyxl import load_workbook
-                wb = load_workbook(io.BytesIO(r["excel_bytes"]), data_only=True)
-                missing_set = set(missing)
-                out_bytes = _capability_highlight_rows(wb, r["ban_sheet"], missing_set)
-                if out_bytes:
-                    base = Path(r["original_name"]).stem
-                    st.session_state["cap_download"] = {"bytes": out_bytes, "name": f"{base}_highlighted.xlsx"}
-                    st.rerun()
-        if st.button("Clear result", key="cap_clear_btn"):
-            st.session_state.pop("cap_validation_result", None)
-            st.session_state.pop("cap_download", None)
-            st.rerun()
-
-    if "cap_download" in st.session_state:
-        d = st.session_state["cap_download"]
-        st.download_button(
-            "⬇ Download modified Excel",
-            data=d["bytes"],
-            file_name=d["name"],
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="cap_dl_btn",
-        )
