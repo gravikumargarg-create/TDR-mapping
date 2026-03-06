@@ -1,0 +1,6 @@
+# Streamlit Cloud: set "Main file path" to app.py (this repo has no streamlit_tdr subfolder).
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false

@@ -56,6 +56,7 @@ st.markdown(
     ">
         <div style="font-size: 1.35rem; font-weight: 700; margin-bottom: 6px;">TDR Portal</div>
         <div style="font-size: 0.8rem; opacity: 0.95;">Choose your tool: Synthetic data or Production data</div>
+        <div style="font-size: 0.65rem; opacity: 0.7; margin-top: 4px;">v2 — Production: Full bulk or TDR list only</div>
     </div>
     """,
     unsafe_allow_html=True,
