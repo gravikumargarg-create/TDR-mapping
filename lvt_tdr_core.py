@@ -916,7 +916,7 @@ def write_insert_sql_file(rows_to_insert, owner, requestor, default_tdr_id, outp
     table_name = table_name or BAN_MASTER_TABLE_SQL
     if not rows_to_insert:
         if log:
-            log("No rows to write (only LVT Passed + Found or Found but no TDR).")
+            log("No rows to write for this INSERT file.")
         return None
     owner_sql = _sql_escape(owner) if owner else "NULL"
     requestor_sql = _sql_escape(requestor) if requestor else "NULL"
@@ -1041,27 +1041,20 @@ def run_lvt_tdr_from_paths(
         "tdr_passed": tdr_passed, "tdr_failed": tdr_failed, "tdr_partial": tdr_partial,
     }
 
-    # Build INSERT rows:
-    # - Synthetic SQL: only LVT Passed + (Found / Found but no TDR)
-    # - Production SQL: LVT Passed + Failed + (Found / Found but no TDR)
-    rows_synth = []
-    rows_prod = []
-    for cid in sorted(merged.keys()):
-        info = merged[cid]
-        status = info.get("status") or "Not found"
-        tdr_id = info.get("tdr_id")
+    # Build INSERT rows: everyone from LVT list; TDR from mapping or default_tdr_id.
+    # Bifurcation: customer_id starting with "960" → synthetic SQL; all others → production SQL.
+    rows_all = []
+    for cid in sorted(customer_ids):
+        info = merged.get(cid, {})
+        tdr_id = info.get("tdr_id")  # None for Found but no TDR or Not found → use default_tdr_id in write
         raw_lvt = (lvt_status.get(cid) or "").strip()
         lvt_st = raw_lvt.lower()
-        if status not in ("Found", "Found but no TDR"):
-            continue
-        if lvt_st not in ("passed", "failed"):
-            continue
         status_label = "Passed LVT" if lvt_st == "passed" else "Failed LVT"
-        # Synthetic: only Passed
-        if lvt_st == "passed":
-            rows_synth.append((cid, tdr_id, status_label))
-        # Production: both Passed and Failed
-        rows_prod.append((cid, tdr_id, status_label))
+        rows_all.append((cid, tdr_id, status_label))
+
+    cid_str = lambda c: str(c).strip()
+    rows_synth = [r for r in rows_all if cid_str(r[0]).startswith("960")]
+    rows_prod = [r for r in rows_all if not cid_str(r[0]).startswith("960")]
 
     synth_sql_path = output_dir / f"INSERT_BAN_MASTER_LIST_LVT_SYNTH_{ts}.sql"
     prod_sql_path = output_dir / f"INSERT_BAN_MASTER_LIST_LVT_{ts}.sql"

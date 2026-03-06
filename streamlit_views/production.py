@@ -178,25 +178,25 @@ def render_production():
         with c2:
             if r.get("sql_synth_bytes"):
                 st.download_button(
-                    "INSERT SQL – synthetic (Passed only)",
+                    "INSERT SQL – synthetic (customer ID 960*)",
                     data=r["sql_synth_bytes"],
                     file_name=r.get("sql_synth_name") or "INSERT_BAN_MASTER_LIST_LVT_SYNTH.sql",
                     mime="text/plain",
                     key="dl_sql_synth",
                 )
             else:
-                st.info("No INSERT SQL for synthetic (no Passed + mapped rows).")
+                st.info("No INSERT SQL for synthetic (no customers starting with 960).")
         with c3:
             if r.get("sql_prod_bytes"):
                 st.download_button(
-                    "INSERT SQL – production (Passed + Failed)",
+                    "INSERT SQL – production (all other customers)",
                     data=r["sql_prod_bytes"],
                     file_name=r.get("sql_prod_name") or "INSERT_BAN_MASTER_LIST_LVT.sql",
                     mime="text/plain",
                     key="dl_sql_prod",
                 )
             else:
-                st.info("No INSERT SQL for production (no Passed/Failed + mapped rows).")
+                st.info("No INSERT SQL for production (no customers other than 960*).")
 
         if r.get("summary"):
             s = r["summary"]
