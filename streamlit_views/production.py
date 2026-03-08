@@ -153,17 +153,23 @@ def render_production():
     )
     st.markdown(
         """
-        <div style="background: linear-gradient(90deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%); color: #fff; padding: 18px 20px; border-radius: 10px; margin-bottom: 12px; text-align: center;">
+        <div style="background: linear-gradient(90deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%); color: #fff; padding: 18px 20px; border-radius: 10px; margin-bottom: 16px; text-align: center;">
             <div style="font-size: 1.25rem; font-weight: 700;">Bulk data mapping</div>
-            <div style="font-size: 0.75rem; opacity: 0.95;">Bulk mapping for both production and synthetic data, with INSERT query creation for BAN Master table. Inputs needed: TDR data, LVT report, and capability reports.</div>
+            <div style="font-size: 0.8rem; opacity: 0.95;">LVT + data → report & INSERT SQL for BAN Master table.</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
     with st.sidebar:
-        st.markdown("**Choose workflow**")
-        st.caption("Pick how you want to use Bulk data mapping: full run (LVT + data → report & INSERT SQL) or only build a TDR-wise customer list from data files.")
+        st.markdown(
+            """
+            <div style="padding: 0.75rem 1rem; background: #f0fdfa; border: 1px solid #0d9488; border-radius: 8px; margin-bottom: 0.75rem;">
+                <strong style="color: #0f766e;">Choose workflow</strong> <span style="font-size: 0.7rem; color: #64748b;">(pick one below)</span> — <b>Full bulk loading</b>: LVT + data → report & INSERT SQL. <b>Only TDR customer list analysis</b>: data files → TDR-wise list (no LVT).
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         mode = st.selectbox(
             "Mode",
             options=["full", "tdr_only"],
@@ -180,16 +186,16 @@ def render_production():
     st.markdown("---")
 
     if mode == "tdr_only":
-        # ----- Only TDR customer list analysis (separate uploader key so switching to full starts empty) -----
-        st.markdown("**Upload data Excel files** (TDR data, Rate Plan, etc. — no LVT needed)")
+        # ----- Only TDR customer list analysis -----
+        st.markdown("**Upload data files**")
         _tdr_clear = st.session_state.get("data_clear_tdr", 0)
-        data_files = st.file_uploader("Data Excel files (multiple)", type=["xlsx", "xlsm"], accept_multiple_files=True, key=f"data_prod_tdr_{_tdr_clear}")
+        data_files = st.file_uploader("Data Excel files (multiple)", type=["xlsx", "xlsm"], accept_multiple_files=True, key=f"data_prod_tdr_{_tdr_clear}", help="TDR data, Rate Plan, etc. No LVT needed.")
         _c1, _c2, _c3 = st.columns([2, 1, 1])
         with _c3:
             if st.button("Clear data files", key="clear_tdr_btn", type="secondary", use_container_width=True, help="Remove all data files and start over"):
                 st.session_state["data_clear_tdr"] = _tdr_clear + 1
                 st.rerun()
-        tdr_only_clicked = st.button("Get TDR Customer List", key="tdr_only_btn", type="primary", use_container_width=True)
+        tdr_only_clicked = st.button("Get TDR Customer List", key="tdr_only_btn", type="primary", use_container_width=True, help="Build TDR-wise customer list from uploaded data files.")
 
         if tdr_only_clicked and run_tdr_list_only is not None:
             if not data_files or all(f.size == 0 for f in data_files):
@@ -244,40 +250,40 @@ def render_production():
             )
         return
 
-    # ----- Full bulk loading (separate uploader keys so switching from TDR-only shows empty data files) -----
-    st.markdown("**1. LVT report** (Excel with BAN/customer IDs and Pass/Fail status)")
-    lvt_file = st.file_uploader("LVT Excel", type=["xlsx", "xlsm"], key="lvt_prod")
-    lvt_sheet = st.text_input("LVT sheet name", value="BAN Wise Result", key="lvt_sheet_prod")
+    # ----- Full bulk loading -----
+    st.markdown("**1. LVT report**")
+    lvt_file = st.file_uploader("LVT Excel", type=["xlsx", "xlsm"], key="lvt_prod", help="Excel with BAN/customer IDs and Pass/Fail status.")
+    lvt_sheet = st.text_input("LVT sheet name", value="BAN Wise Result", key="lvt_sheet_prod", help="Sheet in LVT Excel with BAN-wise results.")
 
-    st.markdown("**2. Data Excel files** (all non-LVT Excel files; TDR data, Rate Plan, etc.)")
+    st.markdown("**2. Data Excel files**")
     _full_clear = st.session_state.get("data_clear_full", 0)
-    data_files = st.file_uploader("Data Excel files (multiple)", type=["xlsx", "xlsm"], accept_multiple_files=True, key=f"data_prod_full_{_full_clear}")
+    data_files = st.file_uploader("Data Excel files (multiple)", type=["xlsx", "xlsm"], accept_multiple_files=True, key=f"data_prod_full_{_full_clear}", help="TDR data, Rate Plan, etc. — all non-LVT Excel files.")
     _c1, _c2, _c3 = st.columns([2, 1, 1])
     with _c3:
         if st.button("Clear data files", key="clear_full_btn", type="secondary", use_container_width=True, help="Remove all data files and upload different ones"):
             st.session_state["data_clear_full"] = _full_clear + 1
             st.rerun()
 
-    with st.expander("**Optional – for INSERT SQL** (only if you need custom OWNER/REQUESTOR/Default TDR)"):
-        st.caption("Leave blank to still generate INSERT SQL with empty OWNER/REQUESTOR; use Default TDR for rows that are Found but have no TDR.")
-        st.text_input("OWNER (for SQL)", value="", key="owner_prod")
-        st.text_input("REQUESTOR (for SQL)", value="", key="requestor_prod")
-        st.text_input("Default TDR for 'Found but no TDR' rows", value="", key="default_tdr_prod")
+    with st.expander("Optional – INSERT SQL (OWNER / REQUESTOR / Default TDR)", expanded=False):
+        st.caption("Leave blank for empty OWNER/REQUESTOR; Default TDR used for Found-but-no-TDR rows.")
+        st.text_input("OWNER (for SQL)", value="", key="owner_prod", help="Value for OWNER column in INSERT SQL.")
+        st.text_input("REQUESTOR (for SQL)", value="", key="requestor_prod", help="Value for REQUESTOR column in INSERT SQL.")
+        st.text_input("Default TDR", value="", key="default_tdr_prod", help="TDR used when row is Found but has no TDR.")
 
-    run = st.button("Run LVT TDR", type="primary")
+    run = st.button("Run LVT TDR", type="primary", help="Process LVT + data files → report and INSERT SQL.")
 
-    # ----- Capability validation (visible right below Run LVT TDR) -----
     st.markdown("---")
+    st.markdown("**3. Capability validation**")
     st.markdown(
         """
-        <div style="padding: 0.75rem 1rem; background: #f0fdfa; border: 1px solid #0d9488; border-radius: 8px; margin-bottom: 0.5rem;">
-            <strong style="color: #0f766e;">Capability validation</strong> <span style="font-size: 0.7rem; color: #64748b;">(click either button to download)</span> — Upload the BAN list Excel (e.g. QE_MBL_BAN_LIST) with <b>QE_BAN_LIST</b> sheet (BAN column) and <b>Device Details</b> sheet (CUSTOMER_ID). We'll find BANs not in Device Details; then use <b>Remove from BAN list and download</b> or <b>Highlight rows and download</b>.
+        <div style="padding: 0.6rem 1rem; background: #f0fdfa; border: 1px solid #0d9488; border-radius: 8px; margin-bottom: 0.5rem; font-size: 0.85rem;">
+            <strong style="color: #0f766e;">Compare BAN list vs Device Details</strong> — find BANs not in Device Details; then <b>Remove from BAN list</b> or <b>Highlight rows</b> and download.
         </div>
         """,
         unsafe_allow_html=True,
     )
-    cap_file = st.file_uploader("Upload BAN list Excel for capability validation", type=["xlsx", "xlsm"], key="cap_validation_file")
-    cap_run = st.button("Run capability validation", key="cap_validation_run", type="secondary")
+    cap_file = st.file_uploader("BAN list Excel", type=["xlsx", "xlsm"], key="cap_validation_file", help="Excel with QE_BAN_LIST sheet (BAN column) and Device Details sheet (CUSTOMER_ID).")
+    cap_run = st.button("Run capability validation", key="cap_validation_run", type="secondary", help="Find BANs in list that are not in Device Details.")
 
     if cap_run and cap_file and cap_file.size > 0:
         excel_bytes = cap_file.getvalue()
@@ -305,7 +311,7 @@ def render_production():
             st.write(", ".join(missing[:50]))
             if len(missing) > 50:
                 st.caption(f"… and {len(missing) - 50} more.")
-        st.markdown("**Choose an action — click to download:**")
+        st.markdown("**Choose an action:**")
         base = Path(r["original_name"]).stem
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         # Pre-compute both files once and cache (so we don't recompute every rerun)
@@ -329,6 +335,7 @@ def render_production():
                     key="cap_dl_removed",
                     type="primary",
                     use_container_width=True,
+                    help="Download Excel with missing BANs removed from the list.",
                 )
         with col_highlight:
             if st.session_state.get("cap_highlighted_bytes"):
@@ -340,6 +347,7 @@ def render_production():
                     key="cap_dl_highlighted",
                     type="secondary",
                     use_container_width=True,
+                    help="Download Excel with missing BAN rows highlighted in red.",
                 )
 
     if run and run_lvt_tdr_from_paths is None:
@@ -463,7 +471,7 @@ def render_production():
 
     if "lvt_result" in st.session_state:
         r = st.session_state["lvt_result"]
-        st.success("Done — download the report and INSERT SQL using the buttons below (nothing is saved to disk).")
+        st.success("Done — download below.")
         c1, c2, c3 = st.columns(3)
         with c1:
             st.download_button(
