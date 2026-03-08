@@ -4,6 +4,12 @@ Navigation uses session state so it works on Streamlit Cloud (no switch_page / p
 """
 import streamlit as st
 
+# Version: update only when pushing. Minor (GUI/small fixes): 2.1 → 2.2 → 2.3. Major (new section/feature): 3.0, 4.0, …
+PORTAL_VERSION = "2.1"
+VERSION_NOTE = "Production: Full bulk or TDR list only"
+CREATED_BY = "Ravikumar Garg"
+CREATED_BY_EMAIL = "ravikumg@amdocs.com"
+
 st.set_page_config(page_title="TDR Portal", page_icon="📋", layout="centered", initial_sidebar_state="expanded")
 
 # Which view we're showing (portal | synthetic | production)
@@ -61,7 +67,7 @@ st.markdown(
     ">
         <div style="font-size: 1.35rem; font-weight: 700; margin-bottom: 6px;">TDR Portal</div>
         <div style="font-size: 0.8rem; opacity: 0.95;">Choose your tool: Synthetic data or Production data</div>
-        <div style="font-size: 0.65rem; opacity: 0.7; margin-top: 4px;">v2 — Production: Full bulk or TDR list only</div>
+        <div style="font-size: 0.65rem; opacity: 0.7; margin-top: 4px;">v""" + PORTAL_VERSION + """ — """ + VERSION_NOTE + """</div>
     </div>
     """,
     unsafe_allow_html=True,
@@ -76,15 +82,16 @@ with col1:
     if st.button("📋 **TDR wise mapping**", use_container_width=True, type="primary", key="btn_synthetic"):
         st.session_state.portal_view = "synthetic"
         st.rerun()
-    st.caption("TDR wise mapping for synthetic data; needed: TDR data sheets, device details and LVT report as input.")
+    st.caption("TDR-wise mapping for synthetic data. Inputs needed: TDR data sheets, device details, and LVT report.")
 
 with col2:
     if st.button("📋 **Bulk data mapping**", use_container_width=True, type="primary", key="btn_production"):
         st.session_state.portal_view = "production"
         st.rerun()
-    st.caption("Bulk mapping for both production and synthetic data with Insert query creation for BAN Master table. Need TDR data, LVT report and capability reports.")
+    st.caption("Bulk mapping for both production and synthetic data, with INSERT query creation for BAN Master table. Inputs needed: TDR data, LVT report, and capability reports.")
 
 st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
 st.markdown(
     "---  \n*Synthetic*: TDR mapping for synthetic/test data.  \n*Production*: LVT TDR mapping and INSERT SQL for production (run SQL manually)."
 )
+st.caption(f"Created by {CREATED_BY}, email — {CREATED_BY_EMAIL}")
