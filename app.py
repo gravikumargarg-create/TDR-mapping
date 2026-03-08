@@ -92,6 +92,18 @@ with col2:
 
 st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
 st.markdown(
-    "---  \n*Synthetic*: TDR mapping for synthetic/test data.  \n*Production*: LVT TDR mapping and INSERT SQL for production (run SQL manually)."
+    f"""
+    <div style="text-align: center;">
+        <hr style="margin: 16px 0;" />
+        <div style="font-size: 0.9rem; color: #334155;"><em>TDR wise mapping</em>: TDR-wise mapping for synthetic/test data.</div>
+        <div style="font-size: 0.9rem; color: #334155;"><em>Bulk data mapping</em>: LVT TDR mapping and INSERT SQL for BAN Master table (run SQL manually).</div>
+        <div style="height: 32px;"></div>
+        <div style="color: #64748b; font-size: 0.8rem;">
+            <div>Created by</div>
+            <div>{CREATED_BY}</div>
+            <div>email — {CREATED_BY_EMAIL}</div>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
-st.caption(f"Created by {CREATED_BY}, email — {CREATED_BY_EMAIL}")
