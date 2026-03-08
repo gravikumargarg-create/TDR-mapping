@@ -162,20 +162,12 @@ def render_production():
     )
 
     with st.sidebar:
-        st.markdown(
-            """
-            <div style="padding: 0.75rem 1rem; background: #f0fdfa; border: 1px solid #0d9488; border-radius: 8px; margin-bottom: 0.75rem;">
-                <strong style="color: #0f766e;">Choose workflow</strong> <span style="font-size: 0.7rem; color: #64748b;">(pick one below)</span> — <b>Full bulk loading</b>: LVT + data → report & INSERT SQL. <b>Only TDR customer list analysis</b>: data files → TDR-wise list (no LVT).
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
         mode = st.selectbox(
-            "Workflow",
+            "Choose workflow",
             options=["full", "tdr_only"],
             format_func=lambda x: "Full bulk loading" if x == "full" else "Only TDR customer list analysis",
             key="production_mode",
-            help="Full bulk loading: LVT + data → report & INSERT SQL. Only TDR customer list: data files → TDR-wise list (no LVT).",
+            help="Pick one below — Full bulk loading: LVT + data → report & INSERT SQL. Only TDR customer list analysis: data files → TDR-wise list (no LVT).",
         )
     # Clear the other mode's result when switching
     if mode == "full" and "tdr_list_result" in st.session_state:
