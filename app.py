@@ -6,7 +6,7 @@ import streamlit as st
 
 # Version: update only when pushing. Minor (GUI/small fixes): 2.1 → 2.2 → 2.3. Major (new section/feature): 3.0, 4.0, …
 PORTAL_VERSION = "2.1"
-VERSION_NOTE = "Production: Full bulk or TDR list only"
+VERSION_NOTE = "Bulk: Full bulk or TDR list only"
 CREATED_BY = "Ravikumar Garg"
 CREATED_BY_EMAIL = "ravikumg@amdocs.com"
 
@@ -66,7 +66,7 @@ st.markdown(
         box-shadow: 0 2px 8px rgba(15, 118, 110, 0.3); text-align: center;
     ">
         <div style="font-size: 1.35rem; font-weight: 700; margin-bottom: 6px;">TDR Portal</div>
-        <div style="font-size: 0.8rem; opacity: 0.95;">Choose your tool: Synthetic data or Production data</div>
+        <div style="font-size: 0.8rem; opacity: 0.95;">Choose your tool: TDR wise mapping or Bulk data mapping</div>
         <div style="font-size: 0.65rem; opacity: 0.7; margin-top: 4px;">v""" + PORTAL_VERSION + """ — """ + VERSION_NOTE + """</div>
     </div>
     """,
@@ -93,11 +93,7 @@ with col2:
 st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
 st.markdown(
     f"""
-    <div style="text-align: center;">
-        <hr style="margin: 16px 0;" />
-        <div style="font-size: 0.9rem; color: #334155;"><em>TDR wise mapping</em>: TDR-wise mapping for synthetic/test data.</div>
-        <div style="font-size: 0.9rem; color: #334155;"><em>Bulk data mapping</em>: LVT TDR mapping and INSERT SQL for BAN Master table (run SQL manually).</div>
-        <div style="height: 32px;"></div>
+    <div style="text-align: center; margin-top: 24px;">
         <div style="color: #64748b; font-size: 0.8rem;">
             <div>Created by</div>
             <div>{CREATED_BY}</div>
