@@ -4,8 +4,8 @@ Navigation uses session state so it works on Streamlit Cloud (no switch_page / p
 """
 import streamlit as st
 
-# Version: update only when pushing. Minor (GUI/small fixes): 2.1 → 2.2 → 2.3. Major (new section/feature): 3.0, 4.0, …
-PORTAL_VERSION = "2.2"
+# Version: BUMP BEFORE EACH PUSH. Minor (GUI/small fixes): 2.1 → 2.2 → 2.3. Major (new section/feature): 3.0, 4.0, …
+PORTAL_VERSION = "2.3"
 VERSION_NOTE = "TDR wise mapping & Bulk data mapping"
 CREATED_BY = "Ravikumar Garg"
 CREATED_BY_EMAIL = "ravikumg@amdocs.com"
@@ -37,6 +37,7 @@ st.markdown(
     [data-testid="column"]:last-of-type .stButton > button[kind="primary"]:hover { box-shadow: 0 6px 20px rgba(234, 88, 12, 0.4) !important; }
     [data-testid="column"] { background: #fff; border-radius: 14px; padding: 22px 20px !important; margin: 0 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04); border-left: 4px solid #0d9488; }
     [data-testid="column"]:last-of-type { border-left-color: #ea580c; }
+    section[data-testid="stSidebar"] .stButton:first-of-type > button { background: #0d9488 !important; color: #fff !important; border: none !important; border-radius: 8px !important; font-weight: 500 !important; }
     </style>
     """,
     unsafe_allow_html=True,

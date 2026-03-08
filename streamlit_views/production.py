@@ -161,17 +161,19 @@ def render_production():
         unsafe_allow_html=True,
     )
 
-    mode = st.radio(
-        "**What do you want to do?**",
-        options=["full", "tdr_only"],
-        format_func=lambda x: (
-            "Full bulk loading (LVT + data → report + INSERT SQL)"
-            if x == "full"
-            else "Only TDR customer list analysis (data files → TDR-wise list)"
-        ),
-        key="production_mode",
-        horizontal=True,
-    )
+    with st.sidebar:
+        st.markdown("**What do you want to do?**")
+        mode = st.radio(
+            "Mode",
+            options=["full", "tdr_only"],
+            format_func=lambda x: (
+                "Full bulk loading (LVT + data → report + INSERT SQL)"
+                if x == "full"
+                else "Only TDR customer list analysis (data files → TDR-wise list)"
+            ),
+            key="production_mode",
+            label_visibility="collapsed",
+        )
     # Clear the other mode's result when switching
     if mode == "full" and "tdr_list_result" in st.session_state:
         st.session_state.pop("tdr_list_result", None)
