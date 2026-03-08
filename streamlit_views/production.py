@@ -1,6 +1,7 @@
 """Production LVT TDR Delivery view – run from app.py when portal_view == 'production'."""
 import io
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
@@ -153,8 +154,8 @@ def render_production():
     st.markdown(
         """
         <div style="background: linear-gradient(90deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%); color: #fff; padding: 18px 20px; border-radius: 10px; margin-bottom: 12px; text-align: center;">
-            <div style="font-size: 1.25rem; font-weight: 700;">LVT TDR Delivery (Production data)</div>
-            <div style="font-size: 0.75rem; opacity: 0.95;">Choose your option below, then upload files and run.</div>
+            <div style="font-size: 1.25rem; font-weight: 700;">Bulk data mapping</div>
+            <div style="font-size: 0.75rem; opacity: 0.95;">Bulk mapping for both production and synthetic data with Insert query creation for BAN Master table. Need TDR data, LVT report and capability reports.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -307,6 +308,7 @@ def render_production():
                 st.caption(f"… and {len(missing) - 50} more.")
         st.markdown("**Choose an action — click to download:**")
         base = Path(r["original_name"]).stem
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         # Pre-compute both files once and cache (so we don't recompute every rerun)
         _cache_key = (r["original_name"], len(missing))
         if "cap_removed_bytes" not in st.session_state or st.session_state.get("cap_validation_key") != _cache_key:
@@ -323,7 +325,7 @@ def render_production():
                 st.download_button(
                     "Remove from BAN list and download",
                     data=st.session_state["cap_removed_bytes"],
-                    file_name=f"{base}_BANs_removed.xlsx",
+                    file_name=f"{base}_BANs_removed_{ts}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     key="cap_dl_removed",
                     type="primary",
@@ -334,7 +336,7 @@ def render_production():
                 st.download_button(
                     "Highlight rows and download",
                     data=st.session_state["cap_highlighted_bytes"],
-                    file_name=f"{base}_highlighted.xlsx",
+                    file_name=f"{base}_highlighted_{ts}.xlsx",
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     key="cap_dl_highlighted",
                     type="secondary",

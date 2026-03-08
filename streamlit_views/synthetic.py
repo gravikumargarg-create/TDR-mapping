@@ -27,8 +27,8 @@ def render_synthetic():
     st.markdown(
         """
         <div style="background: linear-gradient(90deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%); color: #fff; padding: 18px 20px; border-radius: 10px; margin-bottom: 12px; text-align: center;">
-            <div style="font-size: 1.25rem; font-weight: 700;">TDR mapping sheet creation (Synthetic data)</div>
-            <div style="font-size: 0.75rem; opacity: 0.95;">Upload TDR data + LVT report → mapping and TDR-wise reports.</div>
+            <div style="font-size: 1.25rem; font-weight: 700;">TDR wise mapping</div>
+            <div style="font-size: 0.75rem; opacity: 0.95;">TDR wise mapping for synthetic data; needed: TDR data sheets, device details and LVT report as input.</div>
         </div>
         """,
         unsafe_allow_html=True,

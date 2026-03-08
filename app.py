@@ -73,16 +73,16 @@ st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 col1, col2 = st.columns(2)
 
 with col1:
-    if st.button("📋 **Synthetic data** – TDR mapping sheet creation", use_container_width=True, type="primary", key="btn_synthetic"):
+    if st.button("📋 **TDR wise mapping**", use_container_width=True, type="primary", key="btn_synthetic"):
         st.session_state.portal_view = "synthetic"
         st.rerun()
-    st.caption("Upload TDR data + LVT report → mapping and TDR-wise reports.")
+    st.caption("TDR wise mapping for synthetic data; needed: TDR data sheets, device details and LVT report as input.")
 
 with col2:
-    if st.button("📋 **Production data** – LVT TDR Delivery", use_container_width=True, type="primary", key="btn_production"):
+    if st.button("📋 **Bulk data mapping**", use_container_width=True, type="primary", key="btn_production"):
         st.session_state.portal_view = "production"
         st.rerun()
-    st.caption("Upload LVT + data Excel files → report + INSERT SQL (no DB).")
+    st.caption("Bulk mapping for both production and synthetic data with Insert query creation for BAN Master table. Need TDR data, LVT report and capability reports.")
 
 st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
 st.markdown(
