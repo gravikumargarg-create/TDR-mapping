@@ -5,8 +5,8 @@ Navigation uses session state so it works on Streamlit Cloud (no switch_page / p
 import streamlit as st
 
 # Version: update only when pushing. Minor (GUI/small fixes): 2.1 → 2.2 → 2.3. Major (new section/feature): 3.0, 4.0, …
-PORTAL_VERSION = "2.1"
-VERSION_NOTE = "Bulk: Full bulk or TDR list only"
+PORTAL_VERSION = "2.2"
+VERSION_NOTE = "TDR wise mapping & Bulk data mapping"
 CREATED_BY = "Ravikumar Garg"
 CREATED_BY_EMAIL = "ravikumg@amdocs.com"
 
@@ -20,7 +20,7 @@ st.markdown(
     """
     <style>
     .stApp { background: #f1f5f9 !important; }
-    .block-container { padding: 2rem 1.5rem !important; max-width: 720px !important; }
+    .block-container { padding: 2rem 1.5rem !important; max-width: 720px !important; display: flex !important; flex-direction: column !important; min-height: 100vh !important; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -90,10 +90,10 @@ with col2:
         st.rerun()
     st.caption("Bulk mapping for both production and synthetic data, with INSERT query creation for BAN Master table. Inputs needed: TDR data, LVT report, and capability reports.")
 
-st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='flex: 1 1 0; min-height: 24px;'></div>", unsafe_allow_html=True)
 st.markdown(
     f"""
-    <div style="text-align: center; margin-top: 24px;">
+    <div style="text-align: center; padding-bottom: 1rem;">
         <div style="color: #64748b; font-size: 0.8rem;">
             <div>Created by</div>
             <div>{CREATED_BY}</div>
