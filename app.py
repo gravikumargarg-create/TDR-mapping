@@ -5,8 +5,7 @@ Navigation uses session state so it works on Streamlit Cloud (no switch_page / p
 import streamlit as st
 
 # Version: BUMP BEFORE EACH PUSH. Minor (GUI/small fixes): 2.1 → 2.2 → 2.3. Major (new section/feature): 3.0, 4.0, …
-PORTAL_VERSION = "2.5"
-VERSION_NOTE = "TDR wise mapping & Bulk data mapping"
+PORTAL_VERSION = "2.6"
 CREATED_BY = "Ravikumar Garg"
 CREATED_BY_EMAIL = "ravikumg@amdocs.com"
 
@@ -80,7 +79,6 @@ st.markdown(
     <div class="portal-hero">
         <h1>TDR Portal</h1>
         <div class="sub">Choose your tool: TDR wise mapping or Bulk data mapping</div>
-        <span class="ver">v""" + PORTAL_VERSION + """ — """ + VERSION_NOTE + """</span>
     </div>
     <div class="portal-sub">Select an option below to open the respective tool.</div>
     """,
@@ -107,6 +105,7 @@ st.markdown(
         <div>Created by</div>
         <div>{CREATED_BY}</div>
         <div>email — {CREATED_BY_EMAIL}</div>
+        <div style="margin-top: 6px; font-size: 0.75rem;">v{PORTAL_VERSION}</div>
     </div>
     """,
     unsafe_allow_html=True,

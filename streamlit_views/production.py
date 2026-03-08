@@ -171,11 +171,11 @@ def render_production():
             unsafe_allow_html=True,
         )
         mode = st.selectbox(
-            "Mode",
+            "Workflow",
             options=["full", "tdr_only"],
             format_func=lambda x: "Full bulk loading" if x == "full" else "Only TDR customer list analysis",
             key="production_mode",
-            label_visibility="collapsed",
+            help="Full bulk loading: LVT + data → report & INSERT SQL. Only TDR customer list: data files → TDR-wise list (no LVT).",
         )
     # Clear the other mode's result when switching
     if mode == "full" and "tdr_list_result" in st.session_state:
