@@ -162,15 +162,12 @@ def render_production():
     )
 
     with st.sidebar:
-        st.markdown("**What do you want to do?**")
-        mode = st.radio(
+        st.markdown("**Choose workflow**")
+        st.caption("Pick how you want to use Bulk data mapping: full run (LVT + data → report & INSERT SQL) or only build a TDR-wise customer list from data files.")
+        mode = st.selectbox(
             "Mode",
             options=["full", "tdr_only"],
-            format_func=lambda x: (
-                "Full bulk loading (LVT + data → report + INSERT SQL)"
-                if x == "full"
-                else "Only TDR customer list analysis (data files → TDR-wise list)"
-            ),
+            format_func=lambda x: "Full bulk loading" if x == "full" else "Only TDR customer list analysis",
             key="production_mode",
             label_visibility="collapsed",
         )
