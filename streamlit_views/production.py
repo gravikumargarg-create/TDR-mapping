@@ -143,19 +143,24 @@ def render_production():
         """
         <style>
         .stApp { background: #f1f5f9 !important; }
-        .block-container { padding: 1.75rem 1.5rem !important; max-width: 880px !important; }
-        section[data-testid="stFileUploader"] { background: #fff !important; border-radius: 8px !important; border-top: 3px solid #0d9488 !important; }
-        .stButton > button[kind="primary"] { background: #0d9488 !important; color: #fff !important; border-radius: 999px !important; }
+        .block-container { padding: 0.75rem 1rem !important; max-width: 900px !important; }
+        section[data-testid="stFileUploader"] { background: #fff !important; border-radius: 8px !important; border-top: 3px solid #0d9488 !important; min-height: 72px !important; padding: 0.4rem 0.6rem !important; }
+        section[data-testid="stFileUploader"] [data-testid="stFileUploader"] { min-height: 60px !important; }
+        .stButton > button[kind="primary"] { background: #0d9488 !important; color: #fff !important; border-radius: 999px !important; padding: 0.4rem 1rem !important; font-size: 0.9rem !important; }
         div[data-testid="stDownloadButton"] > button { border-radius: 8px !important; border: 1px solid #0d9488 !important; color: #0d9488 !important; }
+        [data-testid="stVerticalBlock"] > div { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; }
+        .compact-banner { background: linear-gradient(90deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%); color: #fff; padding: 10px 14px; border-radius: 8px; margin-bottom: 10px; text-align: center; }
+        .compact-banner .title { font-size: 1.1rem; font-weight: 700; }
+        .compact-banner .sub { font-size: 0.75rem; opacity: 0.95; }
         </style>
         """,
         unsafe_allow_html=True,
     )
     st.markdown(
         """
-        <div style="background: linear-gradient(90deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%); color: #fff; padding: 18px 20px; border-radius: 10px; margin-bottom: 16px; text-align: center;">
-            <div style="font-size: 1.25rem; font-weight: 700;">Bulk data mapping</div>
-            <div style="font-size: 0.8rem; opacity: 0.95;">LVT + data → report & INSERT SQL for BAN Master table.</div>
+        <div class="compact-banner">
+            <div class="title">Bulk data mapping</div>
+            <div class="sub">LVT + data → report & INSERT SQL for BAN Master table.</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -175,7 +180,7 @@ def render_production():
     elif mode == "tdr_only" and "lvt_result" in st.session_state:
         st.session_state.pop("lvt_result", None)
 
-    st.markdown("---")
+    st.markdown("<div style='margin-bottom: 6px;'></div>", unsafe_allow_html=True)
 
     if mode == "tdr_only":
         # ----- Only TDR customer list analysis -----
@@ -242,16 +247,16 @@ def render_production():
             )
         return
 
-    # ----- Full bulk loading -----
-    st.markdown("**1. LVT report**")
-    lvt_file = st.file_uploader("LVT Excel", type=["xlsx", "xlsm"], key="lvt_prod", help="Excel with BAN/customer IDs and Pass/Fail status.")
-    lvt_sheet = st.text_input("LVT sheet name", value="BAN Wise Result", key="lvt_sheet_prod", help="Sheet in LVT Excel with BAN-wise results.")
-
-    st.markdown("**2. Data Excel files**")
-    _full_clear = st.session_state.get("data_clear_full", 0)
-    data_files = st.file_uploader("Data Excel files (multiple)", type=["xlsx", "xlsm"], accept_multiple_files=True, key=f"data_prod_full_{_full_clear}", help="TDR data, Rate Plan, etc. — all non-LVT Excel files.")
-    _c1, _c2, _c3 = st.columns([2, 1, 1])
-    with _c3:
+    # ----- Full bulk loading (two columns to fit on one screen) -----
+    col_lvt, col_data = st.columns(2)
+    with col_lvt:
+        st.markdown("**1. LVT report**")
+        lvt_file = st.file_uploader("LVT Excel", type=["xlsx", "xlsm"], key="lvt_prod", help="Excel with BAN/customer IDs and Pass/Fail status.")
+        lvt_sheet = st.text_input("LVT sheet name", value="BAN Wise Result", key="lvt_sheet_prod", help="Sheet in LVT Excel with BAN-wise results.")
+    with col_data:
+        st.markdown("**2. Data Excel files**")
+        _full_clear = st.session_state.get("data_clear_full", 0)
+        data_files = st.file_uploader("Data Excel files (multiple)", type=["xlsx", "xlsm"], accept_multiple_files=True, key=f"data_prod_full_{_full_clear}", help="TDR data, Rate Plan, etc. — all non-LVT Excel files.")
         if st.button("Clear data files", key="clear_full_btn", type="secondary", use_container_width=True, help="Remove all data files and upload different ones"):
             st.session_state["data_clear_full"] = _full_clear + 1
             st.rerun()

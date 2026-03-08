@@ -5,7 +5,7 @@ Navigation uses session state so it works on Streamlit Cloud (no switch_page / p
 import streamlit as st
 
 # Version: BUMP BEFORE EACH PUSH. Minor (GUI/small fixes): 2.1 → 2.2 → 2.3. Major (new section/feature): 3.0, 4.0, …
-PORTAL_VERSION = "2.8"
+PORTAL_VERSION = "2.9"
 CREATED_BY = "Ravikumar Garg"
 CREATED_BY_EMAIL = "ravikumg@amdocs.com"
 
@@ -20,7 +20,7 @@ st.markdown(
     <style>
     .stApp { background: linear-gradient(160deg, #e0f2f1 0%, #f1f5f9 50%, #fef3c7 100%) !important; min-height: 100vh; }
     .block-container { padding: 2rem 1.5rem 5rem !important; max-width: 760px !important; }
-    #portal-footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; background: rgba(241,245,249,0.95); padding: 12px 0; font-size: 0.8rem; color: #64748b; backdrop-filter: blur(6px); border-top: 1px solid rgba(15, 118, 110, 0.15); }
+    #portal-footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; background: rgba(241,245,249,0.95); padding: 4px 0; font-size: 0.65rem; line-height: 1.35; color: #64748b; backdrop-filter: blur(6px); border-top: 1px solid rgba(15, 118, 110, 0.12); }
     .portal-hero { background: linear-gradient(135deg, #0f766e 0%, #0d9488 35%, #0ea5e9 100%) !important; color: #fff; padding: 28px 28px; border-radius: 16px; margin-bottom: 28px; text-align: center; box-shadow: 0 10px 40px rgba(15, 118, 110, 0.35), 0 0 0 1px rgba(255,255,255,0.1) inset; }
     .portal-hero h1 { font-size: 1.75rem; font-weight: 800; margin: 0 0 8px 0; letter-spacing: -0.02em; }
     .portal-hero .sub { font-size: 0.85rem; opacity: 0.95; }
@@ -74,10 +74,9 @@ if st.session_state.portal_view != "portal":
     st.markdown(
         f"""
         <div id="portal-footer">
-            <div>Created by</div>
-            <div>{CREATED_BY}</div>
+            <div>Created by: {CREATED_BY}</div>
             <div>email — {CREATED_BY_EMAIL}</div>
-            <div style="margin-top: 6px; font-size: 0.75rem;">v{PORTAL_VERSION}</div>
+            <div>v{PORTAL_VERSION}</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -113,10 +112,9 @@ with col2:
 st.markdown(
     f"""
     <div id="portal-footer">
-        <div>Created by</div>
-        <div>{CREATED_BY}</div>
+        <div>Created by: {CREATED_BY}</div>
         <div>email — {CREATED_BY_EMAIL}</div>
-        <div style="margin-top: 6px; font-size: 0.75rem;">v{PORTAL_VERSION}</div>
+        <div>v{PORTAL_VERSION}</div>
     </div>
     """,
     unsafe_allow_html=True,
