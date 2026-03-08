@@ -19,8 +19,24 @@ if "portal_view" not in st.session_state:
 st.markdown(
     """
     <style>
-    .stApp { background: #f1f5f9 !important; }
-    .block-container { padding: 2rem 1.5rem !important; max-width: 720px !important; display: flex !important; flex-direction: column !important; min-height: 100vh !important; }
+    .stApp { background: linear-gradient(160deg, #e0f2f1 0%, #f1f5f9 50%, #fef3c7 100%) !important; min-height: 100vh; }
+    .block-container { padding: 2rem 1.5rem 5rem !important; max-width: 760px !important; }
+    #portal-footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; background: rgba(241,245,249,0.95); padding: 12px 0; font-size: 0.8rem; color: #64748b; backdrop-filter: blur(6px); border-top: 1px solid rgba(15, 118, 110, 0.15); }
+    .portal-hero { background: linear-gradient(135deg, #0f766e 0%, #0d9488 35%, #0ea5e9 100%) !important; color: #fff; padding: 28px 28px; border-radius: 16px; margin-bottom: 28px; text-align: center; box-shadow: 0 10px 40px rgba(15, 118, 110, 0.35), 0 0 0 1px rgba(255,255,255,0.1) inset; }
+    .portal-hero h1 { font-size: 1.75rem; font-weight: 800; margin: 0 0 8px 0; letter-spacing: -0.02em; }
+    .portal-hero .sub { font-size: 0.85rem; opacity: 0.95; }
+    .portal-hero .ver { display: inline-block; font-size: 0.7rem; opacity: 0.9; background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 20px; margin-top: 10px; }
+    .portal-sub { font-size: 0.95rem; color: #475569; font-weight: 600; margin-bottom: 20px; }
+    .portal-card { background: #fff; border-radius: 14px; padding: 24px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04); transition: transform 0.2s, box-shadow 0.2s; border-left: 4px solid #0d9488; }
+    .portal-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.06); }
+    .portal-card.bulk { border-left-color: #ea580c; }
+    .stButton > button[kind="primary"] { background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%) !important; color: #fff !important; border: none !important; border-radius: 12px !important; padding: 12px 24px !important; font-weight: 600 !important; box-shadow: 0 4px 14px rgba(13, 148, 136, 0.4) !important; transition: transform 0.2s, box-shadow 0.2s !important; }
+    .stButton > button[kind="primary"]:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(13, 148, 136, 0.45) !important; }
+    [data-testid="column"]:first-of-type .stButton > button[kind="primary"] { background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%) !important; }
+    [data-testid="column"]:last-of-type .stButton > button[kind="primary"] { background: linear-gradient(135deg, #ea580c 0%, #c2410c 100%) !important; box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35) !important; }
+    [data-testid="column"]:last-of-type .stButton > button[kind="primary"]:hover { box-shadow: 0 6px 20px rgba(234, 88, 12, 0.4) !important; }
+    [data-testid="column"] { background: #fff; border-radius: 14px; padding: 22px 20px !important; margin: 0 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04); border-left: 4px solid #0d9488; }
+    [data-testid="column"]:last-of-type { border-left-color: #ea580c; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -60,21 +76,15 @@ if st.session_state.portal_view != "portal":
 # ----- Portal home -----
 st.markdown(
     """
-    <div style="
-        background: linear-gradient(90deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%);
-        color: #fff; padding: 20px 24px; border-radius: 10px; margin-bottom: 24px;
-        box-shadow: 0 2px 8px rgba(15, 118, 110, 0.3); text-align: center;
-    ">
-        <div style="font-size: 1.35rem; font-weight: 700; margin-bottom: 6px;">TDR Portal</div>
-        <div style="font-size: 0.8rem; opacity: 0.95;">Choose your tool: TDR wise mapping or Bulk data mapping</div>
-        <div style="font-size: 0.65rem; opacity: 0.7; margin-top: 4px;">v""" + PORTAL_VERSION + """ — """ + VERSION_NOTE + """</div>
+    <div class="portal-hero">
+        <h1>TDR Portal</h1>
+        <div class="sub">Choose your tool: TDR wise mapping or Bulk data mapping</div>
+        <span class="ver">v""" + PORTAL_VERSION + """ — """ + VERSION_NOTE + """</span>
     </div>
+    <div class="portal-sub">Select an option below to open the respective tool.</div>
     """,
     unsafe_allow_html=True,
 )
-
-st.markdown("**Select an option below to open the respective tool.**")
-st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
 
@@ -90,15 +100,12 @@ with col2:
         st.rerun()
     st.caption("Bulk mapping for both production and synthetic data, with INSERT query creation for BAN Master table. Inputs needed: TDR data, LVT report, and capability reports.")
 
-st.markdown("<div style='flex: 1 1 0; min-height: 24px;'></div>", unsafe_allow_html=True)
 st.markdown(
     f"""
-    <div style="text-align: center; padding-bottom: 1rem;">
-        <div style="color: #64748b; font-size: 0.8rem;">
-            <div>Created by</div>
-            <div>{CREATED_BY}</div>
-            <div>email — {CREATED_BY_EMAIL}</div>
-        </div>
+    <div id="portal-footer">
+        <div>Created by</div>
+        <div>{CREATED_BY}</div>
+        <div>email — {CREATED_BY_EMAIL}</div>
     </div>
     """,
     unsafe_allow_html=True,
