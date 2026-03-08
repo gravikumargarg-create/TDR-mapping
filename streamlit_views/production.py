@@ -278,16 +278,10 @@ def render_production():
 
     st.markdown("---")
     st.markdown("**3. Capability validation**")
-    st.markdown(
-        """
-        <div style="padding: 0.6rem 1rem; background: #f0fdfa; border: 1px solid #0d9488; border-radius: 8px; margin-bottom: 0.5rem; font-size: 0.85rem;">
-            <strong style="color: #0f766e;">Compare BAN list vs Device Details</strong> — find BANs not in Device Details; then <b>Remove from BAN list</b> or <b>Highlight rows</b> and download.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    cap_file = st.file_uploader("BAN list Excel", type=["xlsx", "xlsm"], key="cap_validation_file", help="Excel with QE_BAN_LIST sheet (BAN column) and Device Details sheet (CUSTOMER_ID).")
-    cap_run = st.button("Run capability validation", key="cap_validation_run", type="secondary", help="Find BANs in list that are not in Device Details.")
+    cap_file = st.file_uploader("BAN list Excel", type=["xlsx", "xlsm"], key="cap_validation_file", help="Excel with QE_BAN_LIST sheet (BAN column) and Device Details sheet (CUSTOMER_ID). Compare BAN list vs Device Details — find BANs not in Device Details; then Remove from BAN list or Highlight rows and download.")
+    _c1, _c2, _c3 = st.columns([1, 2, 1])
+    with _c2:
+        cap_run = st.button("Run capability validation", key="cap_validation_run", type="secondary", use_container_width=True, help="Compare BAN list vs Device Details — find BANs not in Device Details; then Remove from BAN list or Highlight rows and download.")
 
     if cap_run and cap_file and cap_file.size > 0:
         excel_bytes = cap_file.getvalue()
