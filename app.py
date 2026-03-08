@@ -5,7 +5,7 @@ Navigation uses session state so it works on Streamlit Cloud (no switch_page / p
 import streamlit as st
 
 # Version: BUMP BEFORE EACH PUSH. Minor (GUI/small fixes): 2.1 → 2.2 → 2.3. Major (new section/feature): 3.0, 4.0, …
-PORTAL_VERSION = "2.7"
+PORTAL_VERSION = "2.8"
 CREATED_BY = "Ravikumar Garg"
 CREATED_BY_EMAIL = "ravikumg@amdocs.com"
 
@@ -71,6 +71,17 @@ if st.session_state.portal_view != "portal":
     elif st.session_state.portal_view == "production":
         from streamlit_views.production import render_production
         render_production()
+    st.markdown(
+        f"""
+        <div id="portal-footer">
+            <div>Created by</div>
+            <div>{CREATED_BY}</div>
+            <div>email — {CREATED_BY_EMAIL}</div>
+            <div style="margin-top: 6px; font-size: 0.75rem;">v{PORTAL_VERSION}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     st.stop()
 
 # ----- Portal home -----
