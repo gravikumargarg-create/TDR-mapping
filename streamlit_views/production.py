@@ -248,18 +248,15 @@ def render_production():
         return
 
     # ----- Full bulk loading (two columns to fit on one screen) -----
+    _full_clear = st.session_state.get("data_clear_full", 0)
     col_lvt, col_data = st.columns(2)
     with col_lvt:
         st.markdown("**1. LVT report**")
-        lvt_file = st.file_uploader("LVT Excel", type=["xlsx", "xlsm"], key="lvt_prod", help="Excel with BAN/customer IDs and Pass/Fail status.")
-        lvt_sheet = st.text_input("LVT sheet name", value="BAN Wise Result", key="lvt_sheet_prod", help="Sheet in LVT Excel with BAN-wise results.")
+        lvt_file = st.file_uploader("LVT Excel", type=["xlsx", "xlsm"], key=f"lvt_prod_{_full_clear}", help="Excel with BAN/customer IDs and Pass/Fail status.")
+        lvt_sheet = st.text_input("LVT sheet name", value="BAN Wise Result", key=f"lvt_sheet_prod_{_full_clear}", help="Sheet in LVT Excel with BAN-wise results.")
     with col_data:
         st.markdown("**2. Data Excel files**")
-        _full_clear = st.session_state.get("data_clear_full", 0)
         data_files = st.file_uploader("Data Excel files (multiple)", type=["xlsx", "xlsm"], accept_multiple_files=True, key=f"data_prod_full_{_full_clear}", help="TDR data, Rate Plan, etc. — all non-LVT Excel files.")
-        if st.button("Clear data files", key="clear_full_btn", type="secondary", use_container_width=True, help="Remove all data files and upload different ones"):
-            st.session_state["data_clear_full"] = _full_clear + 1
-            st.rerun()
 
     with st.expander("Optional – INSERT SQL (OWNER / REQUESTOR / Default TDR)", expanded=False):
         st.caption("Leave blank for empty OWNER/REQUESTOR; Default TDR used for Found-but-no-TDR rows.")
@@ -267,7 +264,17 @@ def render_production():
         st.text_input("REQUESTOR (for SQL)", value="", key="requestor_prod", help="Value for REQUESTOR column in INSERT SQL.")
         st.text_input("Default TDR", value="", key="default_tdr_prod", help="TDR used when row is Found but has no TDR.")
 
-    run = st.button("Run LVT TDR", type="primary", help="Process LVT + data files → report and INSERT SQL.")
+    col_run, col_clear = st.columns([1, 1])
+    with col_run:
+        run = st.button("Run LVT TDR", type="primary", use_container_width=True, help="Process LVT + data files → report and INSERT SQL.")
+    with col_clear:
+        if st.button("Clear all", key="clear_full_btn", type="secondary", use_container_width=True, help="Clear LVT file, data files, optional fields, and results."):
+            st.session_state["data_clear_full"] = _full_clear + 1
+            for k in ("lvt_result", "cap_validation_result", "cap_download", "cap_removed_bytes", "cap_highlighted_bytes", "cap_validation_key"):
+                st.session_state.pop(k, None)
+            for k in ("owner_prod", "requestor_prod", "default_tdr_prod"):
+                st.session_state.pop(k, None)
+            st.rerun()
 
     st.markdown("---")
     st.markdown("**3. Capability validation**")
