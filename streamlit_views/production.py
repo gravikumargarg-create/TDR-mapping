@@ -277,8 +277,14 @@ def render_production():
             st.rerun()
 
     st.markdown("---")
-    st.markdown("**3. Capability validation**")
-    cap_file = st.file_uploader("BAN list Excel", type=["xlsx", "xlsm"], key="cap_validation_file", help="Excel with QE_BAN_LIST sheet (BAN column) and Device Details sheet (CUSTOMER_ID). Compare BAN list vs Device Details — find BANs not in Device Details; then Remove from BAN list or Highlight rows and download.")
+    st.markdown(
+        """
+        <span style="font-weight: 700;">3. Capability validation</span>
+        <span title="Compare BAN list vs Device Details — find BANs not in Device Details; then Remove from BAN list or Highlight rows and download." style="cursor: help; margin-left: 4px; opacity: 0.8;">ⓘ</span>
+        """,
+        unsafe_allow_html=True,
+    )
+    cap_file = st.file_uploader("BAN list Excel", type=["xlsx", "xlsm"], key="cap_validation_file", help="Which file to add: Excel with QE_BAN_LIST sheet (BAN column) and Device Details sheet (CUSTOMER_ID).")
     _c1, _c2, _c3 = st.columns([1, 2, 1])
     with _c2:
         cap_run = st.button("Run capability validation", key="cap_validation_run", type="secondary", use_container_width=True, help="Compare BAN list vs Device Details — find BANs not in Device Details; then Remove from BAN list or Highlight rows and download.")
