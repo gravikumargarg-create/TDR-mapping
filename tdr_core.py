@@ -1,4 +1,4 @@
-"""
+﻿"""
 TDR Data Excel script - Sheet/file selection and TDR → BAN extraction.
 - Asks user which sheet to use from TDR Data.xlsx (default: same folder as script).
 - Supports multiple Excel files and/or multiple sheets if needed.
@@ -733,48 +733,64 @@ def _find_header_row(ws, max_look=10):
     return (None, None)
 
 
-def _build_ban_to_status_from_sheet(ws):
-    """Build dict BAN (str) -> Status from BAN Wise Result sheet. Returns dict."""
-    ban_to_status = {}
-
-    def collect(ban_col, status_col, data_start_row):
-        for row in ws.iter_rows(min_row=data_start_row, values_only=True):
-            if not row or len(row) < 2:
+def _find_ban_column_in_lvt(ws):
+    """Return 1-based column index for BAN/customer ID (same logic as bulk mapping)."""
+    ban_keywords = ("ban", "bans", "customer", "customer id", "account", "cid")
+    for r in range(1, min(ws.max_row + 1, 15)):
+        row = next(ws.iter_rows(min_row=r, max_row=r, values_only=True), None)
+        if not row:
+            continue
+        for c, val in enumerate(row):
+            if val is None:
                 continue
-            ban_val = row[ban_col - 1] if ban_col <= len(row) else None
-            status_val = row[status_col - 1] if status_col <= len(row) else None
-            ban_strs = set()
-            if ban_val is not None:
-                s = str(ban_val).strip()
-                for m in BAN_PATTERN.finditer(s):
-                    ban_strs.add(m.group(1))
-                if not ban_strs:
-                    single = _normalize_ban(ban_val)
-                    if single:
-                        ban_strs.add(single)
-            status_str = (str(status_val).strip() if status_val else "") if status_val is not None else ""
-            for ban_str in ban_strs:
-                ban_to_status[ban_str] = status_str
+            if str(val).strip().lower() in ban_keywords:
+                return c + 1
+    return 1
 
-    # Try header-based detection first
-    header_row_idx, header_row_vals = _find_header_row(ws)
-    if header_row_idx is not None and header_row_vals:
-        ban_col = _find_column_index_in_row(header_row_vals, ("ban", "bans", "ban id", "account"))
-        status_col = _find_column_index_in_row(header_row_vals, ("status", "result", "lvt", "passed", "delivered", "outcome", "state"))
-        if ban_col is not None and status_col is not None:
-            collect(ban_col, status_col, header_row_idx + 1)
-            return ban_to_status
 
-    # Fallback: BAN Wise Result is often Column A = BAN, Column B = Status (no headers or different headers)
-    data_start = 1
-    first_row = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), None)
-    if first_row and len(first_row) >= 1:
-        first_cell = first_row[0]
-        if first_cell is not None and _normalize_ban(first_cell) is None:
-            s = str(first_cell).strip().lower()
-            if s and not s.isdigit():
-                data_start = 2
-    collect(1, 2, data_start)  # column A = BAN, column B = Status
+def _find_status_column_in_lvt(ws):
+    """Return 1-based column index for Status (same logic as bulk mapping)."""
+    status_keywords = ("status", "result", "lvt", "pass", "fail", "verified", "outcome")
+    for r in range(1, min(ws.max_row + 1, 15)):
+        row = next(ws.iter_rows(min_row=r, max_row=r, values_only=True), None)
+        if not row:
+            continue
+        for c, val in enumerate(row):
+            if val is None:
+                continue
+            if str(val).strip().lower() in status_keywords:
+                return c + 1
+    return 2
+
+
+def _build_ban_to_status_from_sheet(ws):
+    """Build dict BAN (str) -> Status from LVT sheet. Same logic as bulk: all rows from row 2 with Passed/Failed."""
+    ban_to_status = {}
+    ban_col = _find_ban_column_in_lvt(ws)
+    status_col = _find_status_column_in_lvt(ws)
+    ban_header_keywords = (
+        "ban", "bans", "customer", "customer id", "account", "cid",
+        "lgc_customer_id", "customer_id", "status", "lgc customer id",
+    )
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row or ban_col > len(row):
+            continue
+        val = row[ban_col - 1]
+        if val is None:
+            continue
+        cid = str(val).strip()
+        if not cid or cid.lower() in ban_header_keywords:
+            continue
+        if "customer" in cid.lower() and "id" in cid.lower():
+            continue
+        if cid.replace("_", "").replace("-", "").replace(" ", "").isalpha():
+            continue
+        status_val = row[status_col - 1] if status_col <= len(row) else None
+        status_str = (str(status_val).strip() if status_val is not None else "").strip()
+        if status_str.lower() not in ("passed", "failed"):
+            continue
+        key = _normalize_ban(val) or cid
+        ban_to_status[key] = status_str
     return ban_to_status
 
 
@@ -967,7 +983,7 @@ def _add_mapping_sheet(wb, ban_to_status, ban_to_source):
     _status_order = {"Found": 0, "Not found": 1}
     rows = []
     for ban_str in ban_to_status:
-        src = ban_to_source.get(ban_str)
+        src = ban_to_source.get(ban_str) or ban_to_source.get(_normalize_ban(ban_str) if ban_str else "")
         if src:
             tdr_id, excel_file, sheet_name = src
             status = "Found"
@@ -1230,18 +1246,16 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
 
     # Single Excel: Mapping (all LVT customers) + TDR Info + TDR Summary
     if output_excel and ban_to_status:
-        distinct_bans = set(_normalize_ban(b) for _, b in rows_in_lvt if _normalize_ban(b))
-        summary = {"total": len(distinct_bans), "passed": 0, "failed": 0, "not_found": 0}
-        for ban_str in distinct_bans:
-            status = (ban_to_status.get(ban_str) or "Not found").strip() if ban_str else "Not found"
+        # Summary from all LVT customers (same as bulk mapping)
+        summary = {"total": len(ban_to_status), "passed": 0, "failed": 0, "not_found": 0}
+        for status in ban_to_status.values():
             st = str(status).strip().lower()
-            if st == "not found":
-                summary["not_found"] += 1
-            elif st == "passed":
+            if st == "passed":
                 summary["passed"] += 1
             elif st == "failed":
                 summary["failed"] += 1
-        summary["total"] = len(distinct_bans)
+            else:
+                summary["not_found"] += 1
 
         out_wb = Workbook()
         if ban_to_status:
@@ -1255,7 +1269,6 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
         _fill_tdr_info_status_column(out_ws, ban_to_status)
         _fill_tdr_info_failure_columns(out_ws, ban_to_failures)
         tdr_summary_rows = _build_tdr_summary(rows_in_lvt, ban_to_status)
-<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
         _add_tdr_summary_sheet(out_wb, tdr_summary_rows)
         summary["tdr_passed"] = sum(1 for _r in tdr_summary_rows if _r[5] == "Passed")
         summary["tdr_failed"] = sum(1 for _r in tdr_summary_rows if _r[5] == "Failed")
