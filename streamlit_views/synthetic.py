@@ -170,6 +170,7 @@ def render_synthetic():
         tmpdir = tempfile.mkdtemp(prefix="tdr_streamlit_")
         try:
             all_sources = []
+            source_display_names = []
             if data_details_files:
                 for i, f in enumerate(data_details_files):
                     path = os.path.join(tmpdir, f"tdr_input_{i}.xlsx")
@@ -181,6 +182,7 @@ def render_synthetic():
                     wb_tdr.close()
                     if sheet_list:
                         all_sources.append((path, sheet_list))
+                        source_display_names.append(getattr(f, "name", f"Data_{i}.xlsx"))
             else:
                 wb_tdr = tdr_core.load_workbook(BytesIO(tdr_bytes), read_only=True, data_only=True)
                 roles = tdr_core.detect_excel_roles(wb_tdr)
@@ -192,6 +194,7 @@ def render_synthetic():
                     with open(tdr_path, "wb") as f:
                         f.write(tdr_bytes)
                     all_sources.append((tdr_path, sheet_list))
+                    source_display_names.append(tdr_name if tdr_name else "TDR Data.xlsx")
             if not all_sources:
                 st.error("No TDR sheets found in the Data details Excel(s).")
             else:
@@ -217,6 +220,7 @@ def render_synthetic():
                         lvt_report_path=lvt_path, lvt_sheet_name=sheet_to_use if lvt_path else None,
                         device_details_path=device_details_path,
                         bml_path=bml_path,
+                        source_display_names=source_display_names if source_display_names else None,
                     )
                 if result_path and os.path.isfile(result_path):
                     with open(result_path, "rb") as f:

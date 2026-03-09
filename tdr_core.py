@@ -1153,11 +1153,10 @@ def _format_tdr_per_sheet_wide(ws):
     ws.freeze_panes = "A2"
 
 
-def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=None, lvt_sheet_name=None, device_details_path=None, device_details_sheet_name=None, bml_path=None):
+def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=None, lvt_sheet_name=None, device_details_path=None, device_details_sheet_name=None, bml_path=None, source_display_names=None):
     """
-    Extract TDR→BAN from Data details; keep only BANs that exist in LVT. Main Excel has only LVT-matched rows.
-    Per-TDR Excels are created only for TDRs with at least one LVT-matched BAN, each with 3 sheets:
-    (1) Data (from Data details), (2) Device Details, (3) BML.
+    Extract TDR→BAN from Data details; keep only BANs that exist in LVT.
+    source_display_names: optional list of display names for each item in all_sources (e.g. original uploaded file names).
     """
     wb = None
     all_rows = []
@@ -1167,9 +1166,9 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
     tdr_excel_folder = os.path.join(REPORT_FOLDER, datetime.now().strftime("%Y%m%d") + "_TDR")
     per_tdr_files = set()
     os.makedirs(tdr_excel_folder, exist_ok=True)
-    excel_basename = os.path.basename
 
-    for excel_path, sheet_names in all_sources:
+    for i, (excel_path, sheet_names) in enumerate(all_sources):
+        excel_display_name = (source_display_names[i] if source_display_names and i < len(source_display_names) else os.path.basename(excel_path))
         wb = load_workbook(excel_path, read_only=False, data_only=True)
         for sheet_name in sheet_names:
             if sheet_name not in wb.sheetnames:
@@ -1186,7 +1185,7 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
                     all_rows.append((tdr, ban))
                     nban = _normalize_ban(ban)
                     if nban and nban not in ban_to_source:
-                        ban_to_source[nban] = (tdr, excel_basename(excel_path), sheet_name)
+                        ban_to_source[nban] = (tdr, excel_display_name, sheet_name)
             for tdr_id, start_row, end_row_exclusive in get_tdr_section_ranges(ws):
                 tdr_section_ranges.append((tdr_id, excel_path, sheet_name, start_row, end_row_exclusive))
         if wb:
