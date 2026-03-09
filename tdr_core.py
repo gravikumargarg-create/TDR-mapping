@@ -1,5 +1,5 @@
-"""
-TDR Data Excel script - Sheet/file selection and TDR → BAN extraction.
+﻿"""
+TDR Data Excel script - Sheet/file selection and TDR â†’ BAN extraction.
 - Asks user which sheet to use from TDR Data.xlsx (default: same folder as script).
 - Supports multiple Excel files and/or multiple sheets if needed.
 - Headings are not static; identifies sections by TDR number (TDR-######,
@@ -22,7 +22,7 @@ except ImportError:
     print("openpyxl is required. Install with: pip install openpyxl")
     sys.exit(1)
 
-# Pattern: TDR number – hyphen (TDR-204035), space (TDR 203410), underscore (TDR_203410), or none
+# Pattern: TDR number â€“ hyphen (TDR-204035), space (TDR 203410), underscore (TDR_203410), or none
 TDR_PATTERN = re.compile(r"TDR[\s\-_]*(\d{5,6})", re.IGNORECASE)
 # Pattern: 9-digit BAN ID (standalone number in string)
 BAN_PATTERN = re.compile(r"\b(\d{9})\b")
@@ -42,7 +42,7 @@ if sys.platform == "win32":
     except Exception:
         pass
 C = type("C", (), {"RESET": "\033[0m", "BOLD": "\033[1m", "GREEN": "\033[92m", "RED": "\033[91m", "YELLOW": "\033[93m", "CYAN": "\033[96m", "DIM": "\033[2m"})()
-BOX = {"TL": "╔", "TR": "╗", "BL": "╚", "BR": "╝", "H": "═", "V": "║"}
+BOX = {"TL": "â•”", "TR": "â•—", "BL": "â•š", "BR": "â•", "H": "â•", "V": "â•‘"}
 W = 56
 DEFAULT_TDR_EXCEL = os.path.join(BASE_FOLDER, "TDR Data.xlsx")
 DEFAULT_LVT_REPORT = os.path.join(BASE_FOLDER, "LVT_RUN_25Feb_Report.xlsx")
@@ -199,7 +199,7 @@ def get_lvt_report_file_and_sheet():
     else list all sheets and ask which sheet to use for BAN-wise list.
     Returns (file_path, sheet_name) or None.
     """
-    print(f"\nLVT Report – selecting file from delivery path: {TDR_DELIVERY_FOLDER}")
+    print(f"\nLVT Report â€“ selecting file from delivery path: {TDR_DELIVERY_FOLDER}")
     lvt_files = _list_lvt_excel_files(TDR_DELIVERY_FOLDER)
     if not lvt_files:
         print("  No Excel file starting with 'LVT' found in this folder.")
@@ -1072,7 +1072,7 @@ def _format_tdr_per_sheet_wide(ws):
 
 def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=None, lvt_sheet_name=None, device_details_path=None, device_details_sheet_name=None):
     """
-    For each (file, sheets) in all_sources, extract TDR→BAN mapping and print.
+    For each (file, sheets) in all_sources, extract TDRâ†’BAN mapping and print.
     Saves one Excel with TDR Info sheet + TDR Summary when output_excel is set (Status/failures filled from LVT; BAN Wise Result sheet not copied).
     lvt_sheet_name: sheet to use in LVT workbook for BAN-wise list; defaults to LVT_SHEET_NAME if None.
     device_details_path: optional Excel with CUSTOMER_ID and device columns; adds "Device Details" sheet to each TDR-wise Excel for matching BANs.
@@ -1169,10 +1169,6 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
             out_ws.append(list(row))
         _fill_tdr_info_status_column(out_ws, ban_to_status)
         _fill_tdr_info_failure_columns(out_ws, ban_to_failures)
-</think>
-Checking the exact structure of the sheet and loop:
-<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
-Read
         _add_tdr_summary_sheet(out_wb, tdr_summary_rows)
         summary["tdr_passed"] = sum(1 for _r in tdr_summary_rows if _r[5] == "Passed")
         summary["tdr_failed"] = sum(1 for _r in tdr_summary_rows if _r[5] == "Failed")
@@ -1197,7 +1193,7 @@ def _box_title(title):
 
 
 def main():
-    _box_title("TDR Data Excel – Sheet & file selection")
+    _box_title("TDR Data Excel â€“ Sheet & file selection")
     print(f"\n{C.DIM}Working folder:{C.RESET} {BASE_FOLDER}")
 
     # 1) TDR Data Excel path
@@ -1232,12 +1228,12 @@ def main():
         if more_selected:
             all_sources.append((more_path, more_selected))
 
-    # 4) LVT report – user selects file from TDR deliver folder, then sheet if needed
+    # 4) LVT report â€“ user selects file from TDR deliver folder, then sheet if needed
     lvt_choice = get_lvt_report_file_and_sheet()
     lvt_report_path = lvt_choice[0] if lvt_choice else None
     lvt_sheet_name = lvt_choice[1] if lvt_choice else None
 
-    # Extract TDR → BAN mapping and save single Excel to report folder
+    # Extract TDR â†’ BAN mapping and save single Excel to report folder
     os.makedirs(REPORT_FOLDER, exist_ok=True)
     archive_old_reports(REPORT_FOLDER, max_age_days=1)
     _ts = datetime.now().strftime("%Y%m%d_%H%M%S")
