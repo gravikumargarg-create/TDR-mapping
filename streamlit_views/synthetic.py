@@ -24,7 +24,7 @@ def render_synthetic():
         """
         <style>
         .stApp { background: #f1f5f9 !important; }
-        .block-container { padding: 1.75rem 1.5rem !important; max-width: 880px !important; }
+        .block-container { padding: 1.75rem 1.5rem 5rem !important; max-width: 880px !important; }
         section[data-testid="stFileUploader"] { background: #fff !important; border-radius: 8px !important; border-top: 3px solid #0d9488 !important; }
         .stButton > button[kind="primary"] { background: #0d9488 !important; color: #fff !important; border-radius: 999px !important; }
         div[data-testid="stDownloadButton"] > button { border-radius: 8px !important; border: 1px solid #0d9488 !important; color: #0d9488 !important; }
@@ -160,6 +160,7 @@ def render_synthetic():
         has_tdr = bool(tdr_bytes)
         has_lvt = lvt_file and lvt_file.size > 0
         run = st.button("Run TDR", type="primary", use_container_width=True, disabled=not (has_tdr and has_lvt))
+    st.markdown("<div style='height: 2rem;'></div>", unsafe_allow_html=True)
 
     if run and not tdr_bytes and not data_details_files:
         st.warning("Please provide **TDR Data** (upload file(s) or pick from SharePoint).")
