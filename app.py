@@ -5,7 +5,7 @@ Navigation uses session state so it works on Streamlit Cloud (no switch_page / p
 import streamlit as st
 
 # Version: BUMP BEFORE EACH PUSH. Minor (GUI/small fixes): 2.1 → 2.2 → 2.3. Major (new section/feature): 3.0, 4.0, …
-PORTAL_VERSION = "3.2"
+PORTAL_VERSION = "3.3"
 CREATED_BY = "Ravikumar Garg"
 CREATED_BY_EMAIL = "ravikumg@amdocs.com"
 
@@ -55,6 +55,7 @@ def _clear_view_state():
         st.session_state.pop("cap_removed_bytes", None)
         st.session_state.pop("cap_highlighted_bytes", None)
         st.session_state.pop("cap_validation_key", None)
+        st.session_state.pop("tdr_bml_result", None)
 
 
 # ----- Back button in sidebar and sub-view content -----
