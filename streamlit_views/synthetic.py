@@ -221,6 +221,7 @@ def render_synthetic():
     lvt_sheet = None
     device_file = None
     bml_file = None
+    data_details_files = []
 
     if tdr_source == "SharePoint" and not use_sharepoint_direct:
         st.markdown(f'<a href="{TDR_SHAREPOINT_URL}" target="_blank" style="font-size: 0.85rem; color: #0d9488;">📂 Open TDR folder on SharePoint</a>', unsafe_allow_html=True)
@@ -277,10 +278,11 @@ def render_synthetic():
                 lvt_sheet = tdr_core.LVT_SHEET_NAME
     else:
         tdr_sheet_list = []
-        st.markdown("**1. Data details input file** | **2. LVT file**")
+        data_details_files = []
+        st.markdown("**1. Data details input file(s)** | **2. LVT file**")
         _r1a, _r1b = st.columns(2)
         with _r1a:
-            data_details_file = st.file_uploader("Data details input file", type=["xlsx", "xlsm"], key="data_details_upload", help="TDR data Excel (all sheets will be processed).")
+            data_details_upload = st.file_uploader("Data details input file(s)", type=["xlsx", "xlsm"], accept_multiple_files=True, key="data_details_upload", help="One or more TDR data Excel files (all sheets will be processed).")
         with _r1b:
             lvt_file = st.file_uploader("LVT file", type=["xlsx", "xlsm"], key="lvt_upload", help="Excel with BAN Wise Result sheet.")
         st.markdown("**3. Device details** | **4. BML file**")
@@ -289,18 +291,22 @@ def render_synthetic():
             device_file = st.file_uploader("Device details", type=["xlsx", "xlsm"], key="device_upload", help="Excel with CUSTOMER_ID column. Added to ZIP when provided.")
         with _r2b:
             bml_file = st.file_uploader("BML file", type=["xlsx", "xlsm"], key="bml_upload", help="BML Excel. Added to ZIP when provided.")
-        if data_details_file and data_details_file.size > 0:
-            tdr_bytes = data_details_file.getvalue()
-            tdr_name = data_details_file.name
+        if data_details_upload:
+            data_details_files = [f for f in data_details_upload if f and getattr(f, "size", 0) > 0]
+        if data_details_files:
+            tdr_bytes = data_details_files[0].getvalue()
+            tdr_name = data_details_files[0].name if len(data_details_files) == 1 else f"{len(data_details_files)} file(s)"
+            total_sheets = 0
             try:
-                wb_tdr = tdr_core.load_workbook(BytesIO(tdr_bytes), read_only=True, data_only=True)
-                roles = tdr_core.detect_excel_roles(wb_tdr)
-                all_sheets = wb_tdr.sheetnames
-                wb_tdr.close()
-                tdr_sheet_list = roles.get("tdr_sheets") or all_sheets
-                st.caption(f"Data details → {tdr_name} ({len(tdr_sheet_list)} sheet(s) will be processed)")
+                for f in data_details_files:
+                    wb_tdr = tdr_core.load_workbook(BytesIO(f.getvalue()), read_only=True, data_only=True)
+                    roles = tdr_core.detect_excel_roles(wb_tdr)
+                    sheets = roles.get("tdr_sheets") or wb_tdr.sheetnames
+                    wb_tdr.close()
+                    total_sheets += len(sheets)
+                st.caption(f"Data details → {tdr_name} ({total_sheets} sheet(s) will be processed)")
             except Exception:
-                tdr_sheet_list = []
+                pass
         if lvt_file and lvt_file.size > 0:
             try:
                 wb_lvt = tdr_core.load_workbook(BytesIO(lvt_file.getvalue()), read_only=True, data_only=True)
@@ -355,25 +361,40 @@ def render_synthetic():
             use_container_width=True,
         )
 
-    if run and not tdr_bytes:
+    if run and not tdr_bytes and not data_details_files:
         st.warning("Please provide **TDR Data** (upload file(s) or pick from SharePoint).")
     elif run and (not lvt_file or lvt_file.size == 0):
         st.warning("Please upload file(s) that include **LVT Report** (sheet named BAN Wise Result).")
-    elif run and tdr_bytes and lvt_file and lvt_file.size > 0:
+    elif run and (tdr_bytes or data_details_files) and lvt_file and lvt_file.size > 0:
         tmpdir = tempfile.mkdtemp(prefix="tdr_streamlit_")
         try:
-            wb_tdr = tdr_core.load_workbook(BytesIO(tdr_bytes), read_only=True, data_only=True)
-            roles = tdr_core.detect_excel_roles(wb_tdr)
-            all_sheet_names = wb_tdr.sheetnames
-            wb_tdr.close()
-            sheet_list = roles.get("tdr_sheets") or all_sheet_names
-            if not sheet_list:
-                st.error("No TDR sheets found in the TDR Data Excel.")
+            all_sources = []
+            if data_details_files:
+                for i, f in enumerate(data_details_files):
+                    path = os.path.join(tmpdir, f"tdr_input_{i}.xlsx")
+                    with open(path, "wb") as out:
+                        out.write(f.getvalue())
+                    wb_tdr = tdr_core.load_workbook(path, read_only=True, data_only=True)
+                    roles = tdr_core.detect_excel_roles(wb_tdr)
+                    sheet_list = roles.get("tdr_sheets") or wb_tdr.sheetnames
+                    wb_tdr.close()
+                    if sheet_list:
+                        all_sources.append((path, sheet_list))
+            else:
+                wb_tdr = tdr_core.load_workbook(BytesIO(tdr_bytes), read_only=True, data_only=True)
+                roles = tdr_core.detect_excel_roles(wb_tdr)
+                all_sheet_names = wb_tdr.sheetnames
+                wb_tdr.close()
+                sheet_list = roles.get("tdr_sheets") or all_sheet_names
+                if sheet_list:
+                    tdr_path = os.path.join(tmpdir, "tdr_input.xlsx")
+                    with open(tdr_path, "wb") as f:
+                        f.write(tdr_bytes)
+                    all_sources.append((tdr_path, sheet_list))
+            if not all_sources:
+                st.error("No TDR sheets found in the Data details Excel(s).")
             else:
                 os.environ["TDR_WEB_REPORT_FOLDER"] = tmpdir
-                tdr_path = os.path.join(tmpdir, "tdr_input.xlsx")
-                with open(tdr_path, "wb") as f:
-                    f.write(tdr_bytes)
                 lvt_path = os.path.join(tmpdir, "lvt_input.xlsx")
                 with open(lvt_path, "wb") as f:
                     f.write(lvt_file.getvalue())
@@ -386,7 +407,7 @@ def render_synthetic():
                 out_path = os.path.join(tmpdir, "TDR_BAN_Report.xlsx")
                 with st.spinner("Processing…"):
                     result_path, summary = tdr_core.run_extraction_and_report(
-                        [(tdr_path, sheet_list)], output_excel=out_path,
+                        all_sources, output_excel=out_path,
                         lvt_report_path=lvt_path, lvt_sheet_name=sheet_to_use if lvt_path else None,
                         device_details_path=device_details_path,
                     )
