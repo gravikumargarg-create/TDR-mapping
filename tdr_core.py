@@ -1224,6 +1224,7 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
     wb = None
     all_rows = []
     ban_to_source = {}  # normalized_ban -> (tdr_id, excel_filename, sheet_name) for Mapping sheet
+    ban_to_source_path = {}  # normalized_ban -> (excel_path, sheet_name) so we copy TDR from the sheet that has the customer
     tdr_sections_data = {}
     tdr_section_ranges = []  # (tdr_id, excel_path, sheet_name, start_row, end_row_exclusive)
     tdr_excel_folder = os.path.join(REPORT_FOLDER, datetime.now().strftime("%Y%m%d") + "_TDR")
@@ -1249,6 +1250,7 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
                     nban = _normalize_ban(ban)
                     if nban and nban not in ban_to_source:
                         ban_to_source[nban] = (tdr, excel_display_name, sheet_name)
+                        ban_to_source_path[nban] = (excel_path, sheet_name)
             for tdr_id, start_row, end_row_exclusive in get_tdr_section_ranges(ws):
                 tdr_section_ranges.append((tdr_id, excel_path, sheet_name, start_row, end_row_exclusive))
         if wb:
@@ -1274,14 +1276,25 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
     lvt_filter_applied = bool(ban_to_status)
     rows_in_lvt = [(t, b) for t, b in all_rows if _normalize_ban(b) in ban_to_status] if ban_to_status else all_rows
 
-    # Per-TDR Excels: only for TDRs with at least one LVT-matched BAN; 3 sheets: Data, Device Details, BML
+    # Per-TDR Excels: only for TDRs with at least one LVT-matched BAN; copy from the sheet where those BANs exist (same TDR can appear on multiple sheets)
     lvt_tdr_ids = sorted(set(t for t, _ in rows_in_lvt))
     seen_tdr = set()
     for tdr_id in lvt_tdr_ids:
         if tdr_id in seen_tdr:
             continue
         seen_tdr.add(tdr_id)
-        range_entry = next((r for r in tdr_section_ranges if r[0] == tdr_id), None)
+        bans_for_tdr = {ban for t, ban in rows_in_lvt if t == tdr_id}
+        # Pick the (excel_path, sheet_name) where this TDR's LVT customers were found (so we copy from that sheet only)
+        sheet_counts = {}
+        for ban in bans_for_tdr:
+            nban = _normalize_ban(ban)
+            key = ban_to_source_path.get(nban)
+            if key:
+                sheet_counts[key] = sheet_counts.get(key, 0) + 1
+        if not sheet_counts:
+            continue
+        excel_path, sheet_name = max(sheet_counts, key=sheet_counts.get)
+        range_entry = next((r for r in tdr_section_ranges if r[0] == tdr_id and r[1] == excel_path and r[2] == sheet_name), None)
         if not range_entry:
             continue
         _tid, excel_path, sheet_name, start_row, end_row_exclusive = range_entry
@@ -1293,7 +1306,6 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
             src_ws = src_wb[sheet_name]
             copy_wb = _copy_sheet_range_to_workbook(src_ws, start_row, end_row_exclusive, sheet_title=tdr_id)
             src_wb.close()
-            bans_for_tdr = {ban for t, ban in rows_in_lvt if t == tdr_id}
             if device_details_path and os.path.isfile(device_details_path):
                 device_data = _load_device_details(device_details_path, device_details_sheet_name)
                 if device_data:

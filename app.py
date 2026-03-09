@@ -6,9 +6,9 @@ import streamlit as st
 
 # ---------------------------------------------------------------------------
 # VERSION: Update this before every push so the footer shows the correct release.
-# Current: 3.11  →  Bump (e.g. to 3.12) whenever you push changes.
+# Current: 3.12  →  Bump (e.g. to 3.13) whenever you push changes.
 # ---------------------------------------------------------------------------
-PORTAL_VERSION = "3.11"
+PORTAL_VERSION = "3.12"
 CREATED_BY = "Ravikumar Garg"
 CREATED_BY_EMAIL = "ravikumg@amdocs.com"
 
