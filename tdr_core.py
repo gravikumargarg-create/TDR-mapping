@@ -1392,9 +1392,9 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
         delivery_status_rows.append((tdr_id, "QE Team", status, asked, delivered, "No", DELIVERY_STATUS_DEFAULT_COMMENT))
         total_asked += asked
         total_delivered += delivered
-    if delivery_status_rows:
-        row1_status = "Full Delivery" if total_asked == total_delivered else "Partial Delivery"
-        delivery_status_rows.insert(0, ("QE Sanity Data", "QE Team", row1_status, total_asked, total_delivered, "No", "NA"))
+    # Always add summary row first (so QE_MBL download has at least one data row and third button shows)
+    row1_status = "Full Delivery" if total_asked == total_delivered else "Partial Delivery"
+    delivery_status_rows.insert(0, ("QE Sanity Data", "QE Team", row1_status, total_asked, total_delivered, "No", "NA"))
 
     # Single Excel: Mapping (all LVT customers) + TDR Info + TDR Summary
     if output_excel and ban_to_status:

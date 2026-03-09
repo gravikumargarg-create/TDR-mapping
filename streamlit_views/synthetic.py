@@ -250,12 +250,16 @@ def render_synthetic():
                             zip_bytes = buf.getvalue()
                     qe_mbl_bytes = None
                     qe_mbl_filename = f"QE_MBL_BAN_LIST_{datetime.now().strftime('%d%m%Y')}.xlsx"
-                    if (summary or {}).get("delivery_status_rows"):
-                        qe_mbl_bytes = tdr_core.build_qe_mbl_ban_list_workbook(
-                            bml_path, device_details_path,
-                            summary["delivery_status_rows"],
-                            device_details_sheet_name=None,
-                        )
+                    delivery_status_rows = (summary or {}).get("delivery_status_rows")
+                    if delivery_status_rows:
+                        try:
+                            qe_mbl_bytes = tdr_core.build_qe_mbl_ban_list_workbook(
+                                bml_path, device_details_path,
+                                delivery_status_rows,
+                                device_details_sheet_name=None,
+                            )
+                        except Exception:
+                            qe_mbl_bytes = None
                     st.session_state["tdr_result"] = {
                         "report_bytes": report_bytes, "report_filename": report_filename,
                         "zip_bytes": zip_bytes, "zip_filename": zip_filename,
