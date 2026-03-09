@@ -1,4 +1,4 @@
-﻿"""
+"""
 TDR Data Excel script - Sheet/file selection and TDR → BAN extraction.
 - Asks user which sheet to use from TDR Data.xlsx (default: same folder as script).
 - Supports multiple Excel files and/or multiple sheets if needed.
@@ -663,9 +663,10 @@ def _add_device_details_sheet_to_workbook(wb, device_data, bans_set):
             ws.cell(row=r, column=col).border = thin_border
 
 
-def _add_bml_sheet_to_workbook(wb, bml_path):
+def _add_bml_sheet_to_workbook(wb, bml_path, bans_set=None):
     """
-    Add a sheet 'BML' to wb by copying the first sheet of the workbook at bml_path.
+    Add a sheet 'BML' to wb. If bans_set is provided, copy only rows where BAN/customer ID is in that set.
+    Otherwise copy the full first sheet (backward compatible).
     """
     if not bml_path or not os.path.isfile(bml_path):
         return
@@ -675,13 +676,41 @@ def _add_bml_sheet_to_workbook(wb, bml_path):
             bml_wb.close()
             return
         src_ws = bml_wb[bml_wb.sheetnames[0]]
-        dest_ws = wb.create_sheet(title=BML_SHEET_NAME[:31])
         max_col = src_ws.max_column
         max_row = src_ws.max_row
-        for r in range(1, max_row + 1):
+        # Find BAN/customer ID column (1-based)
+        header_row = next(src_ws.iter_rows(min_row=1, max_row=1, values_only=True), None)
+        ban_col = None
+        if header_row:
+            header_vals = list(header_row)
+            ban_col = _find_column_index_in_row(header_vals, ("ban", "bans", "customer", "customer id", "account", "cid"))
+        if not ban_col:
+            ban_col = 1
+        # Build set of normalized BANs to keep
+        bans_normalized = set()
+        if bans_set:
+            for b in bans_set:
+                n = _normalize_ban(b)
+                if n:
+                    bans_normalized.add(n)
+                if isinstance(b, str) and b.strip():
+                    bans_normalized.add(b.strip())
+        dest_ws = wb.create_sheet(title=BML_SHEET_NAME[:31])
+        # Copy header row
+        for c in range(1, max_col + 1):
+            dest_ws.cell(row=1, column=c, value=src_ws.cell(row=1, column=c).value)
+        dest_row = 2
+        for r in range(2, max_row + 1):
+            if bans_normalized:
+                ban_val = src_ws.cell(row=r, column=ban_col).value
+                ban_n = _normalize_ban(ban_val)
+                if not ban_n and ban_val is not None:
+                    ban_n = str(ban_val).strip()
+                if ban_n not in bans_normalized:
+                    continue
             for c in range(1, max_col + 1):
-                val = src_ws.cell(row=r, column=c).value
-                dest_ws.cell(row=r, column=c, value=val)
+                dest_ws.cell(row=dest_row, column=c, value=src_ws.cell(row=r, column=c).value)
+            dest_row += 1
         for c in range(1, max_col + 1):
             letter = get_column_letter(c)
             if letter in src_ws.column_dimensions:
@@ -1238,7 +1267,7 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
                 if device_data:
                     _add_device_details_sheet_to_workbook(copy_wb, device_data, bans_for_tdr)
             if bml_path and os.path.isfile(bml_path):
-                _add_bml_sheet_to_workbook(copy_wb, bml_path)
+                _add_bml_sheet_to_workbook(copy_wb, bml_path, bans_for_tdr)
             path = os.path.join(tdr_excel_folder, _safe_tdr_filename(tdr_id))
             copy_wb.save(path)
             per_tdr_files.add(path)
@@ -1270,6 +1299,7 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
         _fill_tdr_info_status_column(out_ws, ban_to_status)
         _fill_tdr_info_failure_columns(out_ws, ban_to_failures)
         tdr_summary_rows = _build_tdr_summary(rows_in_lvt, ban_to_status)
+<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
         _add_tdr_summary_sheet(out_wb, tdr_summary_rows)
         summary["tdr_passed"] = sum(1 for _r in tdr_summary_rows if _r[5] == "Passed")
         summary["tdr_failed"] = sum(1 for _r in tdr_summary_rows if _r[5] == "Failed")
