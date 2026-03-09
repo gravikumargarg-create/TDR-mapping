@@ -1,14 +1,185 @@
 """Synthetic TDR mapping view – run from app.py when portal_view == 'synthetic'."""
+import io
 import os
 import tempfile
 import zipfile
+from copy import copy
 from datetime import datetime
 from io import BytesIO
-
 import streamlit as st
 
 import tdr_core
 import sharepoint_graph
+
+
+def _normalize_id(val):
+    """Normalize BAN/CUSTOMER_ID for comparison."""
+    if val is None:
+        return None
+    s = str(val).strip()
+    return s if s else None
+
+
+def _run_tdr_bml_merge(device_details_bytes, bml_excel_bytes):
+    """
+    Compare CUSTOMER_ID TDR-wise: get BANs from BML Excel TDR sheet, keep only those in Device details.
+    Build one Excel with: TDR sheet (copy), Pre-load device details (filtered), BML sheet (filtered).
+    Returns (output_bytes, None) or (None, error_message).
+    """
+    try:
+        from openpyxl import load_workbook, Workbook
+    except ImportError:
+        return (None, "openpyxl required")
+    try:
+        wb_dev = load_workbook(io.BytesIO(device_details_bytes), data_only=False)
+        wb_bml = load_workbook(io.BytesIO(bml_excel_bytes), data_only=False)
+    except Exception as e:
+        return (None, str(e))
+    dev_sheet_name = None
+    customer_id_col = None
+    for name in wb_dev.sheetnames:
+        ws = wb_dev[name]
+        if ws.max_row < 2:
+            continue
+        for c in range(1, ws.max_column + 1):
+            if "CUSTOMER_ID" in str(ws.cell(1, c).value or "").upper():
+                dev_sheet_name = name
+                customer_id_col = c
+                break
+        if dev_sheet_name:
+            break
+    if not dev_sheet_name or not customer_id_col:
+        return (None, "Device details Excel must have a sheet with CUSTOMER_ID column.")
+    ws_dev = wb_dev[dev_sheet_name]
+    device_customer_ids = set()
+    for r in range(2, ws_dev.max_row + 1):
+        val = _normalize_id(ws_dev.cell(r, customer_id_col).value)
+        if val:
+            device_customer_ids.add(val)
+    tdr_sheet_name = None
+    tdr_ban_col = None
+    tdr_header_row = 1
+    for name in wb_bml.sheetnames:
+        ws = wb_bml[name]
+        if ws.max_row < 2:
+            continue
+        for row_idx in (2, 1):
+            for c in range(1, min(ws.max_column + 1, 30)):
+                if str(ws.cell(row_idx, c).value or "").strip().upper() == "BAN":
+                    tdr_sheet_name = name
+                    tdr_ban_col = c
+                    tdr_header_row = row_idx
+                    break
+            if tdr_sheet_name:
+                break
+        if tdr_sheet_name:
+            break
+    if not tdr_sheet_name or not tdr_ban_col:
+        return (None, "BML Excel must have a TDR sheet with BAN column.")
+    ws_tdr = wb_bml[tdr_sheet_name]
+    tdr_bans = set()
+    for r in range(tdr_header_row + 1, ws_tdr.max_row + 1):
+        val = ws_tdr.cell(r, tdr_ban_col).value
+        if val is None:
+            continue
+        for part in str(val).replace("\r", "\n").split("\n"):
+            bid = _normalize_id(part.strip() or part)
+            if bid:
+                tdr_bans.add(bid)
+    valid_bans = tdr_bans & device_customer_ids
+    bml_sheet_name = None
+    bml_ban_col = None
+    for name in wb_bml.sheetnames:
+        if name.upper() == "BML":
+            bml_sheet_name = name
+            ws_bml = wb_bml[name]
+            for c in range(1, ws_bml.max_column + 1):
+                if str(ws_bml.cell(1, c).value or "").strip().upper() == "BAN":
+                    bml_ban_col = c
+                    break
+            break
+    if not bml_sheet_name or not bml_ban_col:
+        return (None, "BML Excel must have a sheet named 'BML' with BAN column.")
+    preload_name = "Pre-load device details"
+    out = Workbook()
+    out.remove(out.active)
+    ws_tdr_src = wb_bml[tdr_sheet_name]
+    ws_tdr_out = out.create_sheet(tdr_sheet_name, 0)
+    for r in range(1, ws_tdr_src.max_row + 1):
+        for c in range(1, ws_tdr_src.max_column + 1):
+            cell_src = ws_tdr_src.cell(r, c)
+            cell_out = ws_tdr_out.cell(r, c)
+            cell_out.value = cell_src.value
+            if cell_src.has_style:
+                cell_out.font = copy(cell_src.font)
+                cell_out.border = copy(cell_src.border)
+                cell_out.fill = copy(cell_src.fill)
+                cell_out.number_format = cell_src.number_format
+                cell_out.alignment = copy(cell_src.alignment)
+    if ws_tdr_src.column_dimensions:
+        for k, cd in ws_tdr_src.column_dimensions.items():
+            if cd.width:
+                ws_tdr_out.column_dimensions[k].width = cd.width
+    ws_dev_src = wb_dev[dev_sheet_name]
+    ws_preload = out.create_sheet(preload_name, 1)
+    for c in range(1, ws_dev_src.max_column + 1):
+        cell_src = ws_dev_src.cell(1, c)
+        cell_out = ws_preload.cell(1, c)
+        cell_out.value = cell_src.value
+        if cell_src.has_style:
+            cell_out.font = copy(cell_src.font)
+            cell_out.border = copy(cell_src.border)
+            cell_out.fill = copy(cell_src.fill)
+            cell_out.number_format = cell_src.number_format
+            cell_out.alignment = copy(cell_src.alignment)
+    out_row = 2
+    for r in range(2, ws_dev_src.max_row + 1):
+        cid = _normalize_id(ws_dev_src.cell(r, customer_id_col).value)
+        if cid not in valid_bans:
+            continue
+        for c in range(1, ws_dev_src.max_column + 1):
+            cell_src = ws_dev_src.cell(r, c)
+            cell_out = ws_preload.cell(out_row, c)
+            cell_out.value = cell_src.value
+            if cell_src.has_style:
+                cell_out.font = copy(cell_src.font)
+                cell_out.border = copy(cell_src.border)
+                cell_out.fill = copy(cell_src.fill)
+                cell_out.number_format = cell_src.number_format
+                cell_out.alignment = copy(cell_src.alignment)
+        out_row += 1
+    ws_bml_src = wb_bml[bml_sheet_name]
+    ws_bml_out = out.create_sheet("BML", 2)
+    for c in range(1, ws_bml_src.max_column + 1):
+        cell_src = ws_bml_src.cell(1, c)
+        cell_out = ws_bml_out.cell(1, c)
+        cell_out.value = cell_src.value
+        if cell_src.has_style:
+            cell_out.font = copy(cell_src.font)
+            cell_out.border = copy(cell_src.border)
+            cell_out.fill = copy(cell_src.fill)
+            cell_out.number_format = cell_src.number_format
+            cell_out.alignment = copy(cell_src.alignment)
+    out_row = 2
+    for r in range(2, ws_bml_src.max_row + 1):
+        ban_val = _normalize_id(ws_bml_src.cell(r, bml_ban_col).value)
+        if ban_val not in valid_bans:
+            continue
+        for c in range(1, ws_bml_src.max_column + 1):
+            cell_src = ws_bml_src.cell(r, c)
+            cell_out = ws_bml_out.cell(out_row, c)
+            cell_out.value = cell_src.value
+            if cell_src.has_style:
+                cell_out.font = copy(cell_src.font)
+                cell_out.border = copy(cell_src.border)
+                cell_out.fill = copy(cell_src.fill)
+                cell_out.number_format = cell_src.number_format
+                cell_out.alignment = copy(cell_src.alignment)
+        out_row += 1
+    buf = io.BytesIO()
+    out.save(buf)
+    buf.seek(0)
+    return (buf.getvalue(), None)
 
 
 def render_synthetic():
@@ -133,6 +304,43 @@ def render_synthetic():
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     has_tdr = bool(tdr_bytes)
     run = st.button("Run TDR", type="primary", disabled=not has_tdr)
+
+    st.markdown("---")
+    st.markdown(
+        """
+        <span style="font-weight: 700;">TDR + BML merge</span>
+        <span title="Upload Device details (CUSTOMER_ID) and BML Excel (TDR sheet + BML sheet). We compare CUSTOMER_ID TDR-wise and build one Excel: TDR sheet, Pre-load device details (filtered), BML sheet (filtered). Same format as reference." style="cursor: help; margin-left: 4px; opacity: 0.8;">ⓘ</span>
+        """,
+        unsafe_allow_html=True,
+    )
+    _c4a, _c4b = st.columns(2)
+    with _c4a:
+        tdr_bml_device_file = st.file_uploader("Device details Excel", type=["xlsx", "xlsm"], key="tdr_bml_device", help="Excel with a sheet containing CUSTOMER_ID column (e.g. Pre-load device details).")
+    with _c4b:
+        tdr_bml_bml_file = st.file_uploader("BML Excel", type=["xlsx", "xlsm"], key="tdr_bml_bml", help="Excel with TDR sheet (BAN column) and BML sheet (BAN column). Same format as TDR-200581.xlsx.")
+    _c4_1, _c4_2, _c4_3 = st.columns([1, 2, 1])
+    with _c4_2:
+        tdr_bml_run = st.button("Generate TDR Excel", key="tdr_bml_run", type="secondary", use_container_width=True, help="Compare CUSTOMER_ID TDR-wise; output one Excel with TDR, Pre-load device details, BML sheets.")
+    if tdr_bml_run and tdr_bml_device_file and tdr_bml_bml_file and tdr_bml_device_file.size > 0 and tdr_bml_bml_file.size > 0:
+        with st.spinner("Comparing CUSTOMER_ID TDR-wise and building Excel…"):
+            out_bytes, err = _run_tdr_bml_merge(tdr_bml_device_file.getvalue(), tdr_bml_bml_file.getvalue())
+        if err:
+            st.error(err)
+        else:
+            st.session_state["tdr_bml_result"] = {"bytes": out_bytes, "name": f"TDR_BML_merged_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"}
+            st.rerun()
+    if "tdr_bml_result" in st.session_state:
+        r = st.session_state["tdr_bml_result"]
+        st.success("TDR Excel ready — download below.")
+        st.download_button(
+            "Download TDR Excel (TDR + Pre-load device details + BML)",
+            data=r["bytes"],
+            file_name=r["name"],
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="tdr_bml_dl",
+            type="primary",
+            use_container_width=True,
+        )
 
     if run and not tdr_bytes:
         st.warning("Please provide **TDR Data** (upload file(s) or pick from SharePoint).")

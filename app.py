@@ -5,7 +5,7 @@ Navigation uses session state so it works on Streamlit Cloud (no switch_page / p
 import streamlit as st
 
 # Version: BUMP BEFORE EACH PUSH. Minor (GUI/small fixes): 2.1 → 2.2 → 2.3. Major (new section/feature): 3.0, 4.0, …
-PORTAL_VERSION = "3.3"
+PORTAL_VERSION = "3.4"
 CREATED_BY = "Ravikumar Garg"
 CREATED_BY_EMAIL = "ravikumg@amdocs.com"
 
@@ -45,7 +45,7 @@ st.markdown(
 def _clear_view_state():
     """Clear result and detection state for the current view so it resets when re-entered."""
     if st.session_state.portal_view == "synthetic":
-        for key in ("tdr_result", "_detected", "_last_detection_key"):
+        for key in ("tdr_result", "_detected", "_last_detection_key", "tdr_bml_result"):
             st.session_state.pop(key, None)
     elif st.session_state.portal_view == "production":
         st.session_state.pop("lvt_result", None)
@@ -55,7 +55,6 @@ def _clear_view_state():
         st.session_state.pop("cap_removed_bytes", None)
         st.session_state.pop("cap_highlighted_bytes", None)
         st.session_state.pop("cap_validation_key", None)
-        st.session_state.pop("tdr_bml_result", None)
 
 
 # ----- Back button in sidebar and sub-view content -----
