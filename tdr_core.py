@@ -734,8 +734,8 @@ def _find_header_row(ws, max_look=10):
 
 
 def _find_ban_column_in_lvt(ws):
-    """Return 1-based column index for BAN/customer ID (same logic as bulk mapping)."""
-    ban_keywords = ("ban", "bans", "customer", "customer id", "account", "cid")
+    """Return 1-based column index for BAN/customer ID. Match if header contains any keyword."""
+    ban_keywords = ("ban", "bans", "customer", "account", "cid", "lgc")
     for r in range(1, min(ws.max_row + 1, 15)):
         row = next(ws.iter_rows(min_row=r, max_row=r, values_only=True), None)
         if not row:
@@ -743,13 +743,14 @@ def _find_ban_column_in_lvt(ws):
         for c, val in enumerate(row):
             if val is None:
                 continue
-            if str(val).strip().lower() in ban_keywords:
+            v = str(val).strip().lower()
+            if any(kw in v for kw in ban_keywords) and "id" in v or v in ("ban", "bans", "account", "cid"):
                 return c + 1
     return 1
 
 
 def _find_status_column_in_lvt(ws):
-    """Return 1-based column index for Status (same logic as bulk mapping)."""
+    """Return 1-based column index for Status. Match if header contains any keyword."""
     status_keywords = ("status", "result", "lvt", "pass", "fail", "verified", "outcome")
     for r in range(1, min(ws.max_row + 1, 15)):
         row = next(ws.iter_rows(min_row=r, max_row=r, values_only=True), None)
@@ -758,7 +759,8 @@ def _find_status_column_in_lvt(ws):
         for c, val in enumerate(row):
             if val is None:
                 continue
-            if str(val).strip().lower() in status_keywords:
+            v = str(val).strip().lower()
+            if any(kw in v for kw in status_keywords):
                 return c + 1
     return 2
 
@@ -787,8 +789,6 @@ def _build_ban_to_status_from_sheet(ws):
             continue
         status_val = row[status_col - 1] if status_col <= len(row) else None
         status_str = (str(status_val).strip() if status_val is not None else "").strip()
-        if status_str.lower() not in ("passed", "failed"):
-            continue
         key = _normalize_ban(val) or cid
         ban_to_status[key] = status_str
     return ban_to_status
