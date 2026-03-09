@@ -1,4 +1,4 @@
-﻿"""
+"""
 TDR Data Excel script - Sheet/file selection and TDR → BAN extraction.
 - Asks user which sheet to use from TDR Data.xlsx (default: same folder as script).
 - Supports multiple Excel files and/or multiple sheets if needed.
@@ -949,9 +949,47 @@ def _build_tdr_summary(all_rows, ban_to_status):
     return result
 
 
+def _add_mapping_sheet(wb, ban_to_status, ban_to_source):
+    """Add 'Mapping' sheet: all LVT customer IDs with TDR Number, Status, LVT Status, Excel File, Sheet Name (like bulk TDR mapping)."""
+    ws = wb.active
+    ws.title = "Mapping"
+    headers = ["Customer ID", "TDR Number", "Status", "LVT Status", "Excel File", "Sheet Name"]
+    ws.append(headers)
+    thin_border = Border(left=Side(style="thin"), right=Side(style="thin"), top=Side(style="thin"), bottom=Side(style="thin"))
+    header_fill = PatternFill(start_color="2F5496", end_color="2F5496", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    for col in range(1, len(headers) + 1):
+        c = ws.cell(row=1, column=col, value=headers[col - 1])
+        c.fill = header_fill
+        c.font = header_font
+        c.border = thin_border
+    # One row per LVT customer; sort: Found first, then Not found; by TDR then Customer ID
+    _status_order = {"Found": 0, "Not found": 1}
+    rows = []
+    for ban_str in ban_to_status:
+        src = ban_to_source.get(ban_str)
+        if src:
+            tdr_id, excel_file, sheet_name = src
+            status = "Found"
+        else:
+            tdr_id, excel_file, sheet_name = "", "", ""
+            status = "Not found"
+        lvt_status = (ban_to_status.get(ban_str) or "").strip() or ""
+        rows.append((_status_order.get(status, 1), tdr_id or "ZZZ", ban_str, ban_str, tdr_id, status, lvt_status, excel_file, sheet_name))
+    rows.sort(key=lambda r: (r[0], r[1], r[3]))
+    for _ord, _tdr_sort, _cid_sort, cid, tdr_num, status, lvt_st, excel_file, sheet_name in rows:
+        ws.append([cid, tdr_num, status, lvt_st, excel_file, sheet_name])
+    for r in range(2, ws.max_row + 1):
+        for col in range(1, len(headers) + 1):
+            ws.cell(row=r, column=col).border = thin_border
+    for i, w in enumerate([16, 16, 12, 12, 20, 24], 1):
+        ws.column_dimensions[get_column_letter(i)].width = min(w, 50)
+    ws.freeze_panes = "A2"
+
+
 def _add_tdr_summary_sheet(wb, tdr_summary_rows):
     """Add 'TDR Summary' sheet with TDR-wise counts and status."""
-    ws = wb.create_sheet(title="TDR Summary", index=1)
+    ws = wb.create_sheet(title="TDR Summary")
     ws.append(["TDR", "Total BANs", "Passed", "Failed", "Not found", "TDR Status"])
     for row in tdr_summary_rows:
         ws.append(list(row))
@@ -1107,14 +1145,15 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
     """
     wb = None
     all_rows = []
+    ban_to_source = {}  # normalized_ban -> (tdr_id, excel_filename, sheet_name) for Mapping sheet
     tdr_sections_data = {}
     tdr_section_ranges = []  # (tdr_id, excel_path, sheet_name, start_row, end_row_exclusive)
     tdr_excel_folder = os.path.join(REPORT_FOLDER, datetime.now().strftime("%Y%m%d") + "_TDR")
     per_tdr_files = set()
     os.makedirs(tdr_excel_folder, exist_ok=True)
+    excel_basename = os.path.basename
 
     for excel_path, sheet_names in all_sources:
-        # Load without read_only so merged_cells are available for extract_tdr_sections_with_rows
         wb = load_workbook(excel_path, read_only=False, data_only=True)
         for sheet_name in sheet_names:
             if sheet_name not in wb.sheetnames:
@@ -1129,6 +1168,9 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
             for tdr, bans in mapping.items():
                 for ban in bans:
                     all_rows.append((tdr, ban))
+                    nban = _normalize_ban(ban)
+                    if nban and nban not in ban_to_source:
+                        ban_to_source[nban] = (tdr, excel_basename(excel_path), sheet_name)
             for tdr_id, start_row, end_row_exclusive in get_tdr_section_ranges(ws):
                 tdr_section_ranges.append((tdr_id, excel_path, sheet_name, start_row, end_row_exclusive))
         if wb:
@@ -1186,8 +1228,8 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
         except (PermissionError, Exception):
             pass
 
-    # Single Excel: TDR Info + TDR Summary with only LVT-matched rows
-    if output_excel and rows_in_lvt:
+    # Single Excel: Mapping (all LVT customers) + TDR Info + TDR Summary
+    if output_excel and ban_to_status:
         distinct_bans = set(_normalize_ban(b) for _, b in rows_in_lvt if _normalize_ban(b))
         summary = {"total": len(distinct_bans), "passed": 0, "failed": 0, "not_found": 0}
         for ban_str in distinct_bans:
@@ -1202,14 +1244,18 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
         summary["total"] = len(distinct_bans)
 
         out_wb = Workbook()
-        out_ws = out_wb.active
-        out_ws.title = "TDR Info"
+        if ban_to_status:
+            _add_mapping_sheet(out_wb, ban_to_status, ban_to_source)
+        out_ws = out_wb.create_sheet(title="TDR Info", index=1) if ban_to_status else out_wb.active
+        if not ban_to_status:
+            out_ws.title = "TDR Info"
         out_ws.append(["TDR", "BAN", "Status"])
         for row in rows_in_lvt:
             out_ws.append(list(row))
         _fill_tdr_info_status_column(out_ws, ban_to_status)
         _fill_tdr_info_failure_columns(out_ws, ban_to_failures)
         tdr_summary_rows = _build_tdr_summary(rows_in_lvt, ban_to_status)
+<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
         _add_tdr_summary_sheet(out_wb, tdr_summary_rows)
         summary["tdr_passed"] = sum(1 for _r in tdr_summary_rows if _r[5] == "Passed")
         summary["tdr_failed"] = sum(1 for _r in tdr_summary_rows if _r[5] == "Failed")
