@@ -226,15 +226,18 @@ def render_synthetic():
                     zip_bytes = None
                     zip_filename = f"TDR_wise_report_{datetime.now().strftime('%Y%m%d')}.zip"
                     per_tdr_folder = (summary or {}).get("per_tdr_folder")
+                    per_tdr_file_names = (summary or {}).get("per_tdr_file_names") or []
                     if per_tdr_folder and os.path.isdir(per_tdr_folder):
-                        files = [n for n in os.listdir(per_tdr_folder) if n.endswith((".xlsx", ".xlsm"))]
+                        files = per_tdr_file_names if per_tdr_file_names else [n for n in os.listdir(per_tdr_folder) if n.endswith((".xlsx", ".xlsm"))]
                         has_device = device_file and device_file.size > 0 and device_details_path and os.path.isfile(device_details_path)
                         has_bml = bml_file and bml_file.size > 0
                         if files or has_device or has_bml:
                             buf = BytesIO()
                             with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
                                 for n in files:
-                                    z.write(os.path.join(per_tdr_folder, n), n)
+                                    fp = os.path.join(per_tdr_folder, n)
+                                    if os.path.isfile(fp):
+                                        z.write(fp, n)
                                 if has_device:
                                     z.write(device_details_path, "Pre-load device details.xlsx")
                                 if has_bml and bml_path and os.path.isfile(bml_path):

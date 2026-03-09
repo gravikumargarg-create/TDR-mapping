@@ -1217,6 +1217,7 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
         _format_tdr_info_sheet(out_ws)
         summary["per_tdr_folder"] = tdr_excel_folder
         summary["per_tdr_count"] = len(per_tdr_files)
+        summary["per_tdr_file_names"] = [os.path.basename(p) for p in per_tdr_files]
         summary["lvt_filter_applied"] = lvt_filter_applied
         try:
             out_wb.save(output_excel)
