@@ -1151,6 +1151,7 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
         except Exception:
             pass
 
+    lvt_filter_applied = bool(ban_to_status)
     rows_in_lvt = [(t, b) for t, b in all_rows if _normalize_ban(b) in ban_to_status] if ban_to_status else all_rows
 
     # Per-TDR Excels: only for TDRs with at least one LVT-matched BAN; 3 sheets: Data, Device Details, BML
@@ -1216,6 +1217,7 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
         _format_tdr_info_sheet(out_ws)
         summary["per_tdr_folder"] = tdr_excel_folder
         summary["per_tdr_count"] = len(per_tdr_files)
+        summary["lvt_filter_applied"] = lvt_filter_applied
         try:
             out_wb.save(output_excel)
             return (output_excel, summary)

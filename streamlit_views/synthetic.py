@@ -259,6 +259,11 @@ def render_synthetic():
     if "tdr_result" in st.session_state:
         r = st.session_state["tdr_result"]
         st.success("Done — download below.")
+        if r.get("summary"):
+            if r["summary"].get("lvt_filter_applied"):
+                st.info("Report shows only customers that appear in the LVT file (LVT filter applied).")
+            else:
+                st.warning("LVT filter could not be applied (no BANs found in LVT sheet). Report shows all rows from Data details. Ensure your LVT file has a sheet like **BAN Wise Result** with BAN and Status columns.")
         if r.get("zip_bytes"):
             c1, c2 = st.columns(2)
             with c1:
