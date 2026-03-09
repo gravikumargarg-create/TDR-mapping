@@ -45,7 +45,7 @@ st.markdown(
 def _clear_view_state():
     """Clear result and detection state for the current view so it resets when re-entered."""
     if st.session_state.portal_view == "synthetic":
-        for key in ("tdr_result", "_detected", "_last_detection_key", "tdr_bml_result"):
+        for key in ("tdr_result", "_detected", "_last_detection_key"):
             st.session_state.pop(key, None)
     elif st.session_state.portal_view == "production":
         st.session_state.pop("lvt_result", None)
