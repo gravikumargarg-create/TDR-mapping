@@ -19,6 +19,7 @@ def _normalize_id(val):
 
 
 def render_synthetic():
+    # TDR+BML merge section removed: use the four uploads above (Data details, LVT, Device details, BML) and Run TDR only.
     st.markdown(
         """
         <style>
