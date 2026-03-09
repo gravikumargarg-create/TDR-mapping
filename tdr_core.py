@@ -401,31 +401,63 @@ def _copy_cell_style(src_cell, dest_cell):
         pass
 
 
+def _is_cell_non_empty(value):
+    """Return True if value is considered non-empty (for used-range detection)."""
+    if value is None:
+        return False
+    s = str(value).strip()
+    return len(s) > 0
+
+
+def _get_used_column_range(src_ws, start_row, end_row_exclusive, merged_ranges):
+    """
+    For the row range [start_row, end_row_exclusive), find the min and max column
+    that contain at least one non-empty cell (merge-aware). Returns (min_col, max_col), 1-based.
+    """
+    min_col, max_col = None, None
+    for r in range(start_row, end_row_exclusive):
+        for c in range(1, src_ws.max_column + 1):
+            val = _get_cell_value_respecting_merge(src_ws, r, c, merged_ranges)
+            if _is_cell_non_empty(val):
+                if min_col is None:
+                    min_col = max_col = c
+                else:
+                    min_col = min(min_col, c)
+                    max_col = max(max_col, c)
+    if min_col is None or max_col is None:
+        return (1, max(1, src_ws.max_column))
+    return (min_col, max_col)
+
+
 def _copy_sheet_range_to_workbook(src_ws, start_row, end_row_exclusive, sheet_title="Data"):
     """
-    Copy all rows from src_ws (start_row through end_row_exclusive - 1) and all columns
-    into a new Workbook with one sheet. Respects merged cells (uses top-left value for merged area).
+    Copy all rows from src_ws (start_row through end_row_exclusive - 1) and all used columns
+    (columns that have at least one non-empty cell in this range) into a new Workbook.
+    Respects merged cells (uses top-left value for merged area).
     Copies values, column widths, row heights, and cell formatting.
     """
     wb = Workbook()
     dest_ws = wb.active
     dest_ws.title = sheet_title[:31] if sheet_title else "Data"
-    max_col = src_ws.max_column
     merged_ranges = _get_merged_ranges(src_ws)
+    min_col, max_col = _get_used_column_range(src_ws, start_row, end_row_exclusive, merged_ranges)
     for r in range(start_row, end_row_exclusive):
         dest_r = r - start_row + 1
-        for c in range(1, max_col + 1):
+        for c in range(min_col, max_col + 1):
+            src_c = c - min_col + 1
             src_cell = src_ws.cell(row=r, column=c)
             cell_value = _get_cell_value_respecting_merge(src_ws, r, c, merged_ranges)
-            dest_cell = dest_ws.cell(row=dest_r, column=c, value=cell_value)
+            dest_cell = dest_ws.cell(row=dest_r, column=src_c, value=cell_value)
             _copy_cell_style(src_cell, dest_cell)
         # Copy row height
         if r in src_ws.row_dimensions and src_ws.row_dimensions[r].height is not None:
             dest_ws.row_dimensions[dest_r].height = src_ws.row_dimensions[r].height
-    for c in range(1, max_col + 1):
-        letter = get_column_letter(c)
-        if letter in src_ws.column_dimensions:
-            dest_ws.column_dimensions[letter].width = src_ws.column_dimensions[letter].width
+    for c in range(min_col, max_col + 1):
+        src_letter = get_column_letter(c)
+        dest_c = c - min_col + 1
+        dest_letter = get_column_letter(dest_c)
+        if src_letter in src_ws.column_dimensions:
+            dest_ws.column_dimensions[dest_letter].width = src_ws.column_dimensions[src_letter].width
     return wb
 
 
@@ -543,7 +575,7 @@ def _copy_sheet_into_workbook(src_ws, dest_wb, sheet_name):
 
 
 # Device Details sheet: columns to store as text to avoid long-number truncation/scientific notation
-DEVICE_DETAILS_SHEET_NAME = "Device Details"
+DEVICE_DETAILS_SHEET_NAME = "Pre-load device details"
 BML_SHEET_NAME = "BML"
 DEVICE_DETAILS_CUSTOMER_ID_HEADERS = ("customer_id", "customer id", "ban", "bans", "lgc_customer id")
 DEVICE_DETAILS_TEXT_COLUMNS = (
@@ -1259,7 +1291,7 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
                 src_wb.close()
                 continue
             src_ws = src_wb[sheet_name]
-            copy_wb = _copy_sheet_range_to_workbook(src_ws, start_row, end_row_exclusive, sheet_title="Data")
+            copy_wb = _copy_sheet_range_to_workbook(src_ws, start_row, end_row_exclusive, sheet_title=tdr_id)
             src_wb.close()
             bans_for_tdr = {ban for t, ban in rows_in_lvt if t == tdr_id}
             if device_details_path and os.path.isfile(device_details_path):
