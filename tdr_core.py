@@ -764,9 +764,53 @@ def _copy_full_sheet_to_workbook(src_ws, dest_wb, sheet_title):
             dest_ws.column_dimensions[letter].width = src_ws.column_dimensions[letter].width
 
 
+def _copy_full_sheet_to_workbook_with_format(src_ws, dest_wb, sheet_title):
+    """Copy all rows and cell formatting (font, fill, border, alignment, number_format) from src_ws to a new sheet in dest_wb."""
+    dest_ws = dest_wb.create_sheet(title=(sheet_title[:31] if sheet_title else "Sheet"))
+    for row in src_ws.iter_rows():
+        row_idx = row[0].row if row and hasattr(row[0], "row") else None
+        if not row_idx:
+            continue
+        dest_row_idx = row_idx
+        for cell in row:
+            dest_cell = dest_ws.cell(row=dest_row_idx, column=cell.column, value=cell.value)
+            _copy_cell_style(cell, dest_cell)
+        if row_idx in src_ws.row_dimensions and src_ws.row_dimensions[row_idx].height is not None:
+            dest_ws.row_dimensions[dest_row_idx].height = src_ws.row_dimensions[row_idx].height
+    for c in range(1, src_ws.max_column + 1):
+        letter = get_column_letter(c)
+        if letter in src_ws.column_dimensions and src_ws.column_dimensions[letter].width is not None:
+            dest_ws.column_dimensions[letter].width = src_ws.column_dimensions[letter].width
+
+
+# Delivery Status sheet formatting to match example QE_MBL_BAN_LIST (magenta header, borders, column widths)
+QE_MBL_DELIVERY_STATUS_HEADER_FILL = PatternFill(start_color="FF009F", end_color="FF009F", fill_type="solid")
+QE_MBL_DELIVERY_STATUS_HEADER_FONT = Font(bold=True, color="002060")
+QE_MBL_DELIVERY_STATUS_COLUMN_WIDTHS = (20.57, 12.71, 19.71, 20.0, 24.43, 23.29, 88.14)
+
+
+def _format_delivery_status_sheet(ws):
+    """Apply formatting to Delivery Status sheet to match example (header fill/font, borders, column widths)."""
+    thin_border = Border(
+        left=Side(style="thin"), right=Side(style="thin"),
+        top=Side(style="thin"), bottom=Side(style="thin"),
+    )
+    for col in range(1, 8):
+        c = ws.cell(row=1, column=col)
+        c.fill = QE_MBL_DELIVERY_STATUS_HEADER_FILL
+        c.font = QE_MBL_DELIVERY_STATUS_HEADER_FONT
+        c.border = thin_border
+    for i, width in enumerate(QE_MBL_DELIVERY_STATUS_COLUMN_WIDTHS, 1):
+        ws.column_dimensions[get_column_letter(i)].width = width
+    for r in range(2, ws.max_row + 1):
+        for col in range(1, 8):
+            ws.cell(row=r, column=col).border = thin_border
+
+
 def build_qe_mbl_ban_list_workbook(bml_path, device_details_path, delivery_status_rows, device_details_sheet_name=None):
     """
     Build QE_MBL_BAN_LIST workbook with 3 sheets: BML (full), Pre-load device details (full), Delivery Status.
+    Copies formatting from source sheets for BML and Device Details; applies example formatting to Delivery Status.
     delivery_status_rows: list of (tdr_id, requestor, status, asked, delivered, dfs_load, comment).
     Returns workbook bytes.
     """
@@ -775,28 +819,44 @@ def build_qe_mbl_ban_list_workbook(bml_path, device_details_path, delivery_statu
     wb.remove(wb.active)
     if bml_path and os.path.isfile(bml_path):
         try:
-            bml_wb = load_workbook(bml_path, read_only=False, data_only=True)
+            bml_wb = load_workbook(bml_path, read_only=False, data_only=False)
             if bml_wb.sheetnames:
-                _copy_full_sheet_to_workbook(bml_wb[bml_wb.sheetnames[0]], wb, "BML")
+                _copy_full_sheet_to_workbook_with_format(bml_wb[bml_wb.sheetnames[0]], wb, "BML")
             bml_wb.close()
         except Exception:
-            pass
+            try:
+                bml_wb = load_workbook(bml_path, read_only=False, data_only=True)
+                if bml_wb.sheetnames:
+                    _copy_full_sheet_to_workbook(bml_wb[bml_wb.sheetnames[0]], wb, "BML")
+                bml_wb.close()
+            except Exception:
+                pass
     if device_details_path and os.path.isfile(device_details_path):
         try:
-            dev_wb = load_workbook(device_details_path, read_only=False, data_only=True)
+            dev_wb = load_workbook(device_details_path, read_only=False, data_only=False)
             sheet_name = device_details_sheet_name or DEVICE_DETAILS_SHEET_NAME
             if sheet_name in dev_wb.sheetnames:
-                _copy_full_sheet_to_workbook(dev_wb[sheet_name], wb, DEVICE_DETAILS_SHEET_NAME)
+                _copy_full_sheet_to_workbook_with_format(dev_wb[sheet_name], wb, DEVICE_DETAILS_SHEET_NAME)
             elif dev_wb.sheetnames:
-                _copy_full_sheet_to_workbook(dev_wb[dev_wb.sheetnames[0]], wb, DEVICE_DETAILS_SHEET_NAME)
+                _copy_full_sheet_to_workbook_with_format(dev_wb[dev_wb.sheetnames[0]], wb, DEVICE_DETAILS_SHEET_NAME)
             dev_wb.close()
         except Exception:
-            pass
+            try:
+                dev_wb = load_workbook(device_details_path, read_only=False, data_only=True)
+                sheet_name = device_details_sheet_name or DEVICE_DETAILS_SHEET_NAME
+                if sheet_name in dev_wb.sheetnames:
+                    _copy_full_sheet_to_workbook(dev_wb[sheet_name], wb, DEVICE_DETAILS_SHEET_NAME)
+                elif dev_wb.sheetnames:
+                    _copy_full_sheet_to_workbook(dev_wb[dev_wb.sheetnames[0]], wb, DEVICE_DETAILS_SHEET_NAME)
+                dev_wb.close()
+            except Exception:
+                pass
     headers = ["TDR ID", "Requestor", "Status", "# of BANs Asked", "# of BANs Delivered", "DFS Load Required", "Comment"]
     ws_ds = wb.create_sheet(title="Delivery Status")
     ws_ds.append(headers)
     for row_tuple in (delivery_status_rows or []):
         ws_ds.append(list(row_tuple))
+    _format_delivery_status_sheet(ws_ds)
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
