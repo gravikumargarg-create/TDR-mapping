@@ -1,5 +1,5 @@
 ﻿"""
-TDR Data Excel script - Sheet/file selection and TDR â†’ BAN extraction.
+TDR Data Excel script - Sheet/file selection and TDR → BAN extraction.
 - Asks user which sheet to use from TDR Data.xlsx (default: same folder as script).
 - Supports multiple Excel files and/or multiple sheets if needed.
 - Headings are not static; identifies sections by TDR number (TDR-######,
@@ -22,7 +22,7 @@ except ImportError:
     print("openpyxl is required. Install with: pip install openpyxl")
     sys.exit(1)
 
-# Pattern: TDR number â€“ hyphen (TDR-204035), space (TDR 203410), underscore (TDR_203410), or none
+# Pattern: TDR number – hyphen (TDR-204035), space (TDR 203410), underscore (TDR_203410), or none
 TDR_PATTERN = re.compile(r"TDR[\s\-_]*(\d{5,6})", re.IGNORECASE)
 # Pattern: 9-digit BAN ID (standalone number in string)
 BAN_PATTERN = re.compile(r"\b(\d{9})\b")
@@ -42,7 +42,7 @@ if sys.platform == "win32":
     except Exception:
         pass
 C = type("C", (), {"RESET": "\033[0m", "BOLD": "\033[1m", "GREEN": "\033[92m", "RED": "\033[91m", "YELLOW": "\033[93m", "CYAN": "\033[96m", "DIM": "\033[2m"})()
-BOX = {"TL": "â•”", "TR": "â•—", "BL": "â•š", "BR": "â•", "H": "â•", "V": "â•‘"}
+BOX = {"TL": "╔", "TR": "╗", "BL": "╚", "BR": "╝", "H": "═", "V": "║"}
 W = 56
 DEFAULT_TDR_EXCEL = os.path.join(BASE_FOLDER, "TDR Data.xlsx")
 DEFAULT_LVT_REPORT = os.path.join(BASE_FOLDER, "LVT_RUN_25Feb_Report.xlsx")
@@ -199,7 +199,7 @@ def get_lvt_report_file_and_sheet():
     else list all sheets and ask which sheet to use for BAN-wise list.
     Returns (file_path, sheet_name) or None.
     """
-    print(f"\nLVT Report â€“ selecting file from delivery path: {TDR_DELIVERY_FOLDER}")
+    print(f"\nLVT Report – selecting file from delivery path: {TDR_DELIVERY_FOLDER}")
     lvt_files = _list_lvt_excel_files(TDR_DELIVERY_FOLDER)
     if not lvt_files:
         print("  No Excel file starting with 'LVT' found in this folder.")
@@ -542,6 +542,7 @@ def _copy_sheet_into_workbook(src_ws, dest_wb, sheet_name):
 
 # Device Details sheet: columns to store as text to avoid long-number truncation/scientific notation
 DEVICE_DETAILS_SHEET_NAME = "Device Details"
+BML_SHEET_NAME = "BML"
 DEVICE_DETAILS_CUSTOMER_ID_HEADERS = ("customer_id", "customer id", "ban", "bans", "lgc_customer id")
 DEVICE_DETAILS_TEXT_COLUMNS = (
     "customer_id", "customer id", "msisdn", "imei", "esn", "eid", "uiccid", "uimsi", "timsi",
@@ -658,6 +659,34 @@ def _add_device_details_sheet_to_workbook(wb, device_data, bans_set):
     for r in range(2, ws.max_row + 1):
         for col in range(1, len(header_row) + 1):
             ws.cell(row=r, column=col).border = thin_border
+
+
+def _add_bml_sheet_to_workbook(wb, bml_path):
+    """
+    Add a sheet 'BML' to wb by copying the first sheet of the workbook at bml_path.
+    """
+    if not bml_path or not os.path.isfile(bml_path):
+        return
+    try:
+        bml_wb = load_workbook(bml_path, read_only=False, data_only=True)
+        if not bml_wb.sheetnames:
+            bml_wb.close()
+            return
+        src_ws = bml_wb[bml_wb.sheetnames[0]]
+        dest_ws = wb.create_sheet(title=BML_SHEET_NAME[:31])
+        max_col = src_ws.max_column
+        max_row = src_ws.max_row
+        for r in range(1, max_row + 1):
+            for c in range(1, max_col + 1):
+                val = src_ws.cell(row=r, column=c).value
+                dest_ws.cell(row=r, column=c, value=val)
+        for c in range(1, max_col + 1):
+            letter = get_column_letter(c)
+            if letter in src_ws.column_dimensions:
+                dest_ws.column_dimensions[letter].width = src_ws.column_dimensions[letter].width
+        bml_wb.close()
+    except Exception:
+        pass
 
 
 def _normalize_ban(value):
@@ -1070,18 +1099,18 @@ def _format_tdr_per_sheet_wide(ws):
     ws.freeze_panes = "A2"
 
 
-def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=None, lvt_sheet_name=None, device_details_path=None, device_details_sheet_name=None):
+def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=None, lvt_sheet_name=None, device_details_path=None, device_details_sheet_name=None, bml_path=None):
     """
-    For each (file, sheets) in all_sources, extract TDRâ†’BAN mapping and print.
-    Saves one Excel with TDR Info sheet + TDR Summary when output_excel is set (Status/failures filled from LVT; BAN Wise Result sheet not copied).
-    lvt_sheet_name: sheet to use in LVT workbook for BAN-wise list; defaults to LVT_SHEET_NAME if None.
-    device_details_path: optional Excel with CUSTOMER_ID and device columns; adds "Device Details" sheet to each TDR-wise Excel for matching BANs.
+    Extract TDR→BAN from Data details; keep only BANs that exist in LVT. Main Excel has only LVT-matched rows.
+    Per-TDR Excels are created only for TDRs with at least one LVT-matched BAN, each with 3 sheets:
+    (1) Data (from Data details), (2) Device Details, (3) BML.
     """
     wb = None
     all_rows = []
     tdr_sections_data = {}
+    tdr_section_ranges = []  # (tdr_id, excel_path, sheet_name, start_row, end_row_exclusive)
     tdr_excel_folder = os.path.join(REPORT_FOLDER, datetime.now().strftime("%Y%m%d") + "_TDR")
-    per_tdr_files = set()  # paths written (one Excel per TDR; same TDR in multiple sheets overwrites)
+    per_tdr_files = set()
     os.makedirs(tdr_excel_folder, exist_ok=True)
 
     for excel_path, sheet_names in all_sources:
@@ -1100,56 +1129,65 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
             for tdr, bans in mapping.items():
                 for ban in bans:
                     all_rows.append((tdr, ban))
-            # Copy each TDR section from this sheet into a separate Excel (all columns, all rows for that TDR)
             for tdr_id, start_row, end_row_exclusive in get_tdr_section_ranges(ws):
-                try:
-                    copy_wb = _copy_sheet_range_to_workbook(
-                        ws, start_row, end_row_exclusive, sheet_title=tdr_id
-                    )
-                    path = os.path.join(tdr_excel_folder, _safe_tdr_filename(tdr_id))
-                    copy_wb.save(path)
-                    per_tdr_files.add(path)
-                except PermissionError:
-                    pass
+                tdr_section_ranges.append((tdr_id, excel_path, sheet_name, start_row, end_row_exclusive))
         if wb:
             wb.close()
             wb = None
 
-    # Add "Device Details" sheet to each TDR-wise Excel if user provided device details file
-    if all_rows and device_details_path and os.path.isfile(device_details_path):
-        device_data = _load_device_details(device_details_path, device_details_sheet_name)
-        if device_data:
-            for tdr_id in sorted(set(t for t, _ in all_rows)):
-                path = os.path.join(tdr_excel_folder, _safe_tdr_filename(tdr_id))
-                if not os.path.isfile(path):
-                    continue
-                try:
-                    wb = load_workbook(path, read_only=False)
-                    bans_for_tdr = {ban for t, ban in all_rows if t == tdr_id}
-                    _add_device_details_sheet_to_workbook(wb, device_data, bans_for_tdr)
-                    wb.save(path)
-                    wb.close()
-                except (PermissionError, Exception):
-                    pass
+    # Load LVT and keep only (TDR, BAN) rows whose BAN is in LVT
+    ban_to_status = {}
+    ban_to_failures = {}
+    sheet_to_use = (lvt_sheet_name or LVT_SHEET_NAME) if lvt_report_path else None
+    if lvt_report_path and os.path.isfile(lvt_report_path) and sheet_to_use:
+        try:
+            lvt_wb = load_workbook(lvt_report_path, read_only=True, data_only=True)
+            if sheet_to_use in lvt_wb.sheetnames:
+                ban_to_status = _build_ban_to_status_from_sheet(lvt_wb[sheet_to_use])
+            failures_sheet_name = _find_failures_sheet_in_workbook(lvt_wb)
+            if failures_sheet_name is not None:
+                ban_to_failures = _build_ban_to_failures_from_sheet(lvt_wb[failures_sheet_name])
+            lvt_wb.close()
+        except Exception:
+            pass
 
-    # Single Excel: TDR Info sheet + TDR Summary only (no BAN Wise Result copy; Status filled from LVT)
-    if output_excel and all_rows:
-        ban_to_status = {}
-        ban_to_failures = {}
-        sheet_to_use = (lvt_sheet_name or LVT_SHEET_NAME) if lvt_report_path else None
-        if lvt_report_path and os.path.isfile(lvt_report_path) and sheet_to_use:
-            try:
-                lvt_wb = load_workbook(lvt_report_path, read_only=True, data_only=True)
-                if sheet_to_use in lvt_wb.sheetnames:
-                    ban_to_status = _build_ban_to_status_from_sheet(lvt_wb[sheet_to_use])
-                failures_sheet_name = _find_failures_sheet_in_workbook(lvt_wb)
-                if failures_sheet_name is not None:
-                    ban_to_failures = _build_ban_to_failures_from_sheet(lvt_wb[failures_sheet_name])
-                lvt_wb.close()
-            except Exception:
-                pass
-        # Show all TDR rows; status from LVT. Summary by distinct BAN (Total BAN = distinct count).
-        distinct_bans = set(_normalize_ban(b) for _, b in all_rows if _normalize_ban(b))
+    rows_in_lvt = [(t, b) for t, b in all_rows if _normalize_ban(b) in ban_to_status] if ban_to_status else all_rows
+
+    # Per-TDR Excels: only for TDRs with at least one LVT-matched BAN; 3 sheets: Data, Device Details, BML
+    lvt_tdr_ids = sorted(set(t for t, _ in rows_in_lvt))
+    seen_tdr = set()
+    for tdr_id in lvt_tdr_ids:
+        if tdr_id in seen_tdr:
+            continue
+        seen_tdr.add(tdr_id)
+        range_entry = next((r for r in tdr_section_ranges if r[0] == tdr_id), None)
+        if not range_entry:
+            continue
+        _tid, excel_path, sheet_name, start_row, end_row_exclusive = range_entry
+        try:
+            src_wb = load_workbook(excel_path, read_only=False, data_only=True)
+            if sheet_name not in src_wb.sheetnames:
+                src_wb.close()
+                continue
+            src_ws = src_wb[sheet_name]
+            copy_wb = _copy_sheet_range_to_workbook(src_ws, start_row, end_row_exclusive, sheet_title="Data")
+            src_wb.close()
+            bans_for_tdr = {ban for t, ban in rows_in_lvt if t == tdr_id}
+            if device_details_path and os.path.isfile(device_details_path):
+                device_data = _load_device_details(device_details_path, device_details_sheet_name)
+                if device_data:
+                    _add_device_details_sheet_to_workbook(copy_wb, device_data, bans_for_tdr)
+            if bml_path and os.path.isfile(bml_path):
+                _add_bml_sheet_to_workbook(copy_wb, bml_path)
+            path = os.path.join(tdr_excel_folder, _safe_tdr_filename(tdr_id))
+            copy_wb.save(path)
+            per_tdr_files.add(path)
+        except (PermissionError, Exception):
+            pass
+
+    # Single Excel: TDR Info + TDR Summary with only LVT-matched rows
+    if output_excel and rows_in_lvt:
+        distinct_bans = set(_normalize_ban(b) for _, b in rows_in_lvt if _normalize_ban(b))
         summary = {"total": len(distinct_bans), "passed": 0, "failed": 0, "not_found": 0}
         for ban_str in distinct_bans:
             status = (ban_to_status.get(ban_str) or "Not found").strip() if ban_str else "Not found"
@@ -1166,11 +1204,11 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
         out_ws = out_wb.active
         out_ws.title = "TDR Info"
         out_ws.append(["TDR", "BAN", "Status"])
-        for row in all_rows:
+        for row in rows_in_lvt:
             out_ws.append(list(row))
         _fill_tdr_info_status_column(out_ws, ban_to_status)
         _fill_tdr_info_failure_columns(out_ws, ban_to_failures)
-        tdr_summary_rows = _build_tdr_summary(all_rows, ban_to_status)
+        tdr_summary_rows = _build_tdr_summary(rows_in_lvt, ban_to_status)
         _add_tdr_summary_sheet(out_wb, tdr_summary_rows)
         summary["tdr_passed"] = sum(1 for _r in tdr_summary_rows if _r[5] == "Passed")
         summary["tdr_failed"] = sum(1 for _r in tdr_summary_rows if _r[5] == "Failed")
@@ -1195,7 +1233,7 @@ def _box_title(title):
 
 
 def main():
-    _box_title("TDR Data Excel â€“ Sheet & file selection")
+    _box_title("TDR Data Excel – Sheet & file selection")
     print(f"\n{C.DIM}Working folder:{C.RESET} {BASE_FOLDER}")
 
     # 1) TDR Data Excel path
@@ -1230,12 +1268,12 @@ def main():
         if more_selected:
             all_sources.append((more_path, more_selected))
 
-    # 4) LVT report â€“ user selects file from TDR deliver folder, then sheet if needed
+    # 4) LVT report – user selects file from TDR deliver folder, then sheet if needed
     lvt_choice = get_lvt_report_file_and_sheet()
     lvt_report_path = lvt_choice[0] if lvt_choice else None
     lvt_sheet_name = lvt_choice[1] if lvt_choice else None
 
-    # Extract TDR â†’ BAN mapping and save single Excel to report folder
+    # Extract TDR → BAN mapping and save single Excel to report folder
     os.makedirs(REPORT_FOLDER, exist_ok=True)
     archive_old_reports(REPORT_FOLDER, max_age_days=1)
     _ts = datetime.now().strftime("%Y%m%d_%H%M%S")

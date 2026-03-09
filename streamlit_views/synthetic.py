@@ -206,11 +206,17 @@ def render_synthetic():
                         f.write(device_file.getvalue())
                 sheet_to_use = (lvt_sheet or tdr_core.LVT_SHEET_NAME).strip() or tdr_core.LVT_SHEET_NAME
                 out_path = os.path.join(tmpdir, "TDR_BAN_Report.xlsx")
+                bml_path = None
+                if bml_file and bml_file.size > 0:
+                    bml_path = os.path.join(tmpdir, "bml_input.xlsx")
+                    with open(bml_path, "wb") as f:
+                        f.write(bml_file.getvalue())
                 with st.spinner("Processing…"):
                     result_path, summary = tdr_core.run_extraction_and_report(
                         all_sources, output_excel=out_path,
                         lvt_report_path=lvt_path, lvt_sheet_name=sheet_to_use if lvt_path else None,
                         device_details_path=device_details_path,
+                        bml_path=bml_path,
                     )
                 if result_path and os.path.isfile(result_path):
                     with open(result_path, "rb") as f:
@@ -231,10 +237,7 @@ def render_synthetic():
                                     z.write(os.path.join(per_tdr_folder, n), n)
                                 if has_device:
                                     z.write(device_details_path, "Pre-load device details.xlsx")
-                                if has_bml:
-                                    bml_path = os.path.join(tmpdir, "bml_input.xlsx")
-                                    with open(bml_path, "wb") as f:
-                                        f.write(bml_file.getvalue())
+                                if has_bml and bml_path and os.path.isfile(bml_path):
                                     z.write(bml_path, "BML.xlsx")
                             buf.seek(0)
                             zip_bytes = buf.getvalue()
