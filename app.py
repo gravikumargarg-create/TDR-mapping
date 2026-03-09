@@ -7,7 +7,7 @@ import subprocess
 import streamlit as st
 
 # Version: BUMP WHEN YOU PUSH so you can confirm deploy (footer shows this).
-PORTAL_VERSION = "3.6"
+PORTAL_VERSION = "3.7"
 CREATED_BY = "Ravikumar Garg"
 CREATED_BY_EMAIL = "ravikumg@amdocs.com"
 
