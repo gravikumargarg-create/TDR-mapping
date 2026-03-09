@@ -783,28 +783,69 @@ def _copy_full_sheet_to_workbook_with_format(src_ws, dest_wb, sheet_title):
             dest_ws.column_dimensions[letter].width = src_ws.column_dimensions[letter].width
 
 
-# Delivery Status sheet formatting to match example QE_MBL_BAN_LIST (magenta header, borders, column widths)
+# QE_MBL sheet formatting (match user's example: font size, color, background)
+# Header: dark teal background, white bold text (for BML and Device Details)
+QE_MBL_HEADER_FILL = PatternFill(start_color="2F5496", end_color="2F5496", fill_type="solid")
+QE_MBL_HEADER_FONT = Font(bold=True, color="FFFFFF", size=11)
+# Alternating row colors
+QE_MBL_BML_ALT_COLOR = "DDEBF7"       # light blue/aqua for odd data rows
+QE_MBL_DEVICE_ALT_COLOR = "E2EFDA"    # light green for odd data rows
+QE_MBL_DATA_FONT = Font(color="000000", size=11)
+QE_MBL_THIN_BORDER = Border(
+    left=Side(style="thin", color="000000"), right=Side(style="thin", color="000000"),
+    top=Side(style="thin", color="000000"), bottom=Side(style="thin", color="000000"),
+)
+# Delivery Status: magenta header, white text; first data row grey; D/E/F center; G wrap
 QE_MBL_DELIVERY_STATUS_HEADER_FILL = PatternFill(start_color="FF009F", end_color="FF009F", fill_type="solid")
-QE_MBL_DELIVERY_STATUS_HEADER_FONT = Font(bold=True, color="002060")
+QE_MBL_DELIVERY_STATUS_HEADER_FONT = Font(bold=True, color="FFFFFF", size=11)
+QE_MBL_DELIVERY_STATUS_ROW2_FILL = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
 QE_MBL_DELIVERY_STATUS_COLUMN_WIDTHS = (20.57, 12.71, 19.71, 20.0, 24.43, 23.29, 88.14)
 
 
+def _apply_qe_mbl_sheet_format(ws, alt_fill_color, alt_on_even_row=True):
+    """Apply QE_MBL format: row 1 dark teal header (white bold); data rows alternating alt_fill_color and white.
+    alt_on_even_row: if True, rows 2,4,6 get alt color (BML); if False, rows 3,5,7 get alt color (Device Details)."""
+    for col in range(1, ws.max_column + 1):
+        c = ws.cell(row=1, column=col)
+        c.fill = QE_MBL_HEADER_FILL
+        c.font = QE_MBL_HEADER_FONT
+        c.border = QE_MBL_THIN_BORDER
+    for r in range(2, ws.max_row + 1):
+        use_alt = (r % 2 == 0) if alt_on_even_row else (r % 2 == 1)
+        fill = PatternFill(start_color=alt_fill_color, end_color=alt_fill_color, fill_type="solid") if use_alt else PatternFill()
+        for col in range(1, ws.max_column + 1):
+            cell = ws.cell(row=r, column=col)
+            cell.fill = fill
+            cell.font = QE_MBL_DATA_FONT
+            cell.border = QE_MBL_THIN_BORDER
+
+
 def _format_delivery_status_sheet(ws):
-    """Apply formatting to Delivery Status sheet to match example (header fill/font, borders, column widths)."""
-    thin_border = Border(
-        left=Side(style="thin"), right=Side(style="thin"),
-        top=Side(style="thin"), bottom=Side(style="thin"),
-    )
+    """Apply formatting: magenta header with white bold text; row 2 grey A-F; D/E/F center; G wrap; thin borders."""
     for col in range(1, 8):
         c = ws.cell(row=1, column=col)
         c.fill = QE_MBL_DELIVERY_STATUS_HEADER_FILL
         c.font = QE_MBL_DELIVERY_STATUS_HEADER_FONT
-        c.border = thin_border
+        c.border = QE_MBL_THIN_BORDER
     for i, width in enumerate(QE_MBL_DELIVERY_STATUS_COLUMN_WIDTHS, 1):
         ws.column_dimensions[get_column_letter(i)].width = width
+    center_align = Alignment(horizontal="center", vertical="center", wrap_text=False)
+    wrap_align = Alignment(horizontal="left", vertical="top", wrap_text=True)
     for r in range(2, ws.max_row + 1):
         for col in range(1, 8):
-            ws.cell(row=r, column=col).border = thin_border
+            cell = ws.cell(row=r, column=col)
+            cell.border = QE_MBL_THIN_BORDER
+            cell.font = QE_MBL_DATA_FONT
+            if col == 7:
+                cell.alignment = wrap_align
+            elif col in (4, 5, 6):
+                cell.alignment = center_align
+            if r == 2 and col <= 6:
+                cell.fill = QE_MBL_DELIVERY_STATUS_ROW2_FILL
+            elif r == 2 and col == 7:
+                pass
+            elif r > 2:
+                cell.fill = PatternFill()
 
 
 def build_qe_mbl_ban_list_workbook(bml_path, device_details_path, delivery_status_rows, device_details_sheet_name=None):
@@ -831,6 +872,8 @@ def build_qe_mbl_ban_list_workbook(bml_path, device_details_path, delivery_statu
                 bml_wb.close()
             except Exception:
                 pass
+        if "BML" in wb.sheetnames:
+            _apply_qe_mbl_sheet_format(wb["BML"], QE_MBL_BML_ALT_COLOR, alt_on_even_row=True)
     if device_details_path and os.path.isfile(device_details_path):
         try:
             dev_wb = load_workbook(device_details_path, read_only=False, data_only=False)
@@ -851,6 +894,8 @@ def build_qe_mbl_ban_list_workbook(bml_path, device_details_path, delivery_statu
                 dev_wb.close()
             except Exception:
                 pass
+        if DEVICE_DETAILS_SHEET_NAME in wb.sheetnames:
+            _apply_qe_mbl_sheet_format(wb[DEVICE_DETAILS_SHEET_NAME], QE_MBL_DEVICE_ALT_COLOR, alt_on_even_row=False)
     headers = ["TDR ID", "Requestor", "Status", "# of BANs Asked", "# of BANs Delivered", "DFS Load Required", "Comment"]
     ws_ds = wb.create_sheet(title="Delivery Status")
     ws_ds.append(headers)
