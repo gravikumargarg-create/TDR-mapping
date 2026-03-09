@@ -215,9 +215,16 @@ def render_synthetic():
     tdr_sheet = None
     tdr_source = st.radio("TDR file from", options=["Local file", "SharePoint"], horizontal=True, key="tdr_source")
     use_sharepoint_direct = tdr_source == "SharePoint" and sharepoint_graph.has_sharepoint_credentials()
+    tdr_bytes = None
+    tdr_name = None
+    lvt_file = None
+    lvt_sheet = None
+    device_file = None
+    bml_file = None
+
     if tdr_source == "SharePoint" and not use_sharepoint_direct:
         st.markdown(f'<a href="{TDR_SHAREPOINT_URL}" target="_blank" style="font-size: 0.85rem; color: #0d9488;">📂 Open TDR folder on SharePoint</a>', unsafe_allow_html=True)
-        st.caption("Download the file from SharePoint, then upload it in the left box below.")
+        st.caption("Download the file from SharePoint, then use the upload options below.")
 
     if use_sharepoint_direct:
         token = sharepoint_graph.get_token()
@@ -228,7 +235,7 @@ def render_synthetic():
             if not files:
                 st.info("No Excel files found in the TDR folder.")
             else:
-                selected_name = st.selectbox("TDR file (SharePoint)", options=[f["name"] for f in files], key="sp_tdr_file")
+                selected_name = st.selectbox("1. TDR Data (SharePoint)", options=[f["name"] for f in files], key="sp_tdr_file")
                 selected = next((f for f in files if f["name"] == selected_name), None)
                 if selected:
                     cache_key = f"sp_tdr_{selected['id']}"
@@ -244,69 +251,72 @@ def render_synthetic():
                         try:
                             wb_tdr = tdr_core.load_workbook(BytesIO(content), read_only=True, data_only=True)
                             roles = tdr_core.detect_excel_roles(wb_tdr)
-                            all_sheets = wb_tdr.sheetnames
+                            all_sheets_sp = wb_tdr.sheetnames
                             wb_tdr.close()
-                            tdr_sheet_list = roles.get("tdr_sheets") or all_sheets
+                            tdr_sheet_list = roles.get("tdr_sheets") or all_sheets_sp
                             if tdr_sheet_list:
-                                st.caption(f"**TDR Data** → {tdr_name} ({len(tdr_sheet_list)} sheet(s) will be processed)")
+                                st.caption(f"TDR Data → {tdr_name} ({len(tdr_sheet_list)} sheet(s))")
                         except Exception as e:
                             st.warning(str(e))
-                            tdr_sheet_list = []
-        st.markdown("**Upload file(s) for LVT Report and/or Device Details**")
-        upload_files = st.file_uploader("Excel file(s)", type=["xlsx", "xlsm"], accept_multiple_files=True, key="multi_upload")
+        st.markdown("**2. LVT file** | **3. Device details** | **4. BML file**")
+        _s1, _s2, _s3 = st.columns(3)
+        with _s1:
+            lvt_file = st.file_uploader("LVT file", type=["xlsx", "xlsm"], key="lvt_upload_sp", help="Excel with BAN Wise Result sheet.")
+        with _s2:
+            device_file = st.file_uploader("Device details", type=["xlsx", "xlsm"], key="device_upload_sp", help="Excel with CUSTOMER_ID column.")
+        with _s3:
+            bml_file = st.file_uploader("BML file", type=["xlsx", "xlsm"], key="bml_upload_sp", help="BML Excel (TDR + BML sheets).")
+        if lvt_file and lvt_file.size > 0:
+            try:
+                wb_lvt = tdr_core.load_workbook(BytesIO(lvt_file.getvalue()), read_only=True, data_only=True)
+                roles_lvt = tdr_core.detect_excel_roles(wb_lvt)
+                wb_lvt.close()
+                lvt_sheet_list = roles_lvt.get("lvt_sheets") or []
+                lvt_sheet = tdr_core.LVT_SHEET_NAME if tdr_core.LVT_SHEET_NAME in (roles_lvt.get("lvt_sheets") or []) else (lvt_sheet_list[0] if lvt_sheet_list else tdr_core.LVT_SHEET_NAME)
+            except Exception:
+                lvt_sheet = tdr_core.LVT_SHEET_NAME
     else:
-        st.markdown("**Upload file(s) – we'll detect TDR Data, LVT Report, and Device Details**")
-        upload_files = st.file_uploader("Excel file(s)", type=["xlsx", "xlsm"], accept_multiple_files=True, key="multi_upload")
+        tdr_sheet_list = []
+        st.markdown("**1. Data details input file** | **2. LVT file**")
+        _r1a, _r1b = st.columns(2)
+        with _r1a:
+            data_details_file = st.file_uploader("Data details input file", type=["xlsx", "xlsm"], key="data_details_upload", help="TDR data Excel (all sheets will be processed).")
+        with _r1b:
+            lvt_file = st.file_uploader("LVT file", type=["xlsx", "xlsm"], key="lvt_upload", help="Excel with BAN Wise Result sheet.")
+        st.markdown("**3. Device details** | **4. BML file**")
+        _r2a, _r2b = st.columns(2)
+        with _r2a:
+            device_file = st.file_uploader("Device details", type=["xlsx", "xlsm"], key="device_upload", help="Excel with CUSTOMER_ID column. Added to ZIP when provided.")
+        with _r2b:
+            bml_file = st.file_uploader("BML file", type=["xlsx", "xlsm"], key="bml_upload", help="BML Excel. Added to ZIP when provided.")
+        if data_details_file and data_details_file.size > 0:
+            tdr_bytes = data_details_file.getvalue()
+            tdr_name = data_details_file.name
+            try:
+                wb_tdr = tdr_core.load_workbook(BytesIO(tdr_bytes), read_only=True, data_only=True)
+                roles = tdr_core.detect_excel_roles(wb_tdr)
+                all_sheets = wb_tdr.sheetnames
+                wb_tdr.close()
+                tdr_sheet_list = roles.get("tdr_sheets") or all_sheets
+                st.caption(f"Data details → {tdr_name} ({len(tdr_sheet_list)} sheet(s) will be processed)")
+            except Exception:
+                tdr_sheet_list = []
+        if lvt_file and lvt_file.size > 0:
+            try:
+                wb_lvt = tdr_core.load_workbook(BytesIO(lvt_file.getvalue()), read_only=True, data_only=True)
+                roles_lvt = tdr_core.detect_excel_roles(wb_lvt)
+                wb_lvt.close()
+                lvt_sheet_list = roles_lvt.get("lvt_sheets") or []
+                lvt_sheet = tdr_core.LVT_SHEET_NAME if tdr_core.LVT_SHEET_NAME in (roles_lvt.get("lvt_sheets") or []) else (lvt_sheet_list[0] if lvt_sheet_list else tdr_core.LVT_SHEET_NAME)
+            except Exception:
+                lvt_sheet = tdr_core.LVT_SHEET_NAME
 
-    tdr_file = None
-    lvt_file = None
-    device_file = None
-    detection_cache_key = "tdr_detection_" + (str(len(upload_files)) if upload_files else "0") + "_" + "_".join((f.name + str(f.size) for f in upload_files)) if upload_files else ""
-    if upload_files:
-        if detection_cache_key != st.session_state.get("_last_detection_key"):
-            detected = {"tdr": None, "lvt": None, "device": None}
-            for uf in upload_files:
-                try:
-                    buf = BytesIO(uf.getvalue())
-                    wb = tdr_core.load_workbook(buf, read_only=True, data_only=True)
-                    roles = tdr_core.detect_excel_roles(wb)
-                    wb.close()
-                    if roles["tdr_sheets"] and detected["tdr"] is None:
-                        detected["tdr"] = (uf, roles["tdr_sheets"])
-                    if roles["lvt_sheets"] and detected["lvt"] is None:
-                        detected["lvt"] = (uf, roles["lvt_sheets"])
-                    if roles["device_sheets"] and detected["device"] is None:
-                        detected["device"] = (uf, roles["device_sheets"])
-                except Exception:
-                    pass
-            st.session_state["_detected"] = detected
-            st.session_state["_last_detection_key"] = detection_cache_key
-        detected = st.session_state.get("_detected") or {"tdr": None, "lvt": None, "device": None}
-        if not use_sharepoint_direct:
-            tdr_file, tdr_sheet_list = detected["tdr"] or (None, [])
-            if tdr_file and tdr_sheet_list:
-                tdr_bytes = tdr_file.getvalue()
-                tdr_name = tdr_file.name
-                st.caption(f"**TDR Data** → {tdr_file.name} ({len(tdr_sheet_list)} sheet(s) will be processed)")
-            elif upload_files:
-                st.info("No TDR Data detected. Upload an Excel with TDR sections.")
-        lvt_file, lvt_sheet_list = detected["lvt"] or (None, [])
-        if lvt_file and lvt_sheet_list:
-            default_idx = lvt_sheet_list.index(tdr_core.LVT_SHEET_NAME) if tdr_core.LVT_SHEET_NAME in lvt_sheet_list else 0
-            lvt_sheet = st.selectbox("**LVT Report** → " + lvt_file.name, options=lvt_sheet_list, index=default_idx, key="lvt_sheet")
-        else:
-            lvt_sheet = None
-            if upload_files and not detected["lvt"]:
-                st.info("No LVT Report detected (no sheet named 'BAN Wise Result').")
-        device_file, device_sheet_list = detected["device"] or (None, [])
-        if device_file and device_sheet_list:
-            st.caption("**Device Details** → " + device_file.name)
-    else:
-        lvt_sheet = None
-
-    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
-    has_tdr = bool(tdr_bytes)
-    run = st.button("Run TDR", type="primary", disabled=not has_tdr)
+    st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+    _run1, _run2, _run3 = st.columns([1, 2, 1])
+    with _run2:
+        has_tdr = bool(tdr_bytes)
+        has_lvt = lvt_file and lvt_file.size > 0
+        run = st.button("Run TDR", type="primary", use_container_width=True, disabled=not (has_tdr and has_lvt))
 
     st.markdown("---")
     st.markdown(
@@ -390,11 +400,20 @@ def render_synthetic():
                     per_tdr_folder = (summary or {}).get("per_tdr_folder")
                     if per_tdr_folder and os.path.isdir(per_tdr_folder):
                         files = [n for n in os.listdir(per_tdr_folder) if n.endswith((".xlsx", ".xlsm"))]
-                        if files:
+                        has_device = device_file and device_file.size > 0 and device_details_path and os.path.isfile(device_details_path)
+                        has_bml = bml_file and bml_file.size > 0
+                        if files or has_device or has_bml:
                             buf = BytesIO()
                             with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
                                 for n in files:
                                     z.write(os.path.join(per_tdr_folder, n), n)
+                                if has_device:
+                                    z.write(device_details_path, "Pre-load device details.xlsx")
+                                if has_bml:
+                                    bml_path = os.path.join(tmpdir, "bml_input.xlsx")
+                                    with open(bml_path, "wb") as f:
+                                        f.write(bml_file.getvalue())
+                                    z.write(bml_path, "BML.xlsx")
                             buf.seek(0)
                             zip_bytes = buf.getvalue()
                     st.session_state["tdr_result"] = {
