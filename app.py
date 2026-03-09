@@ -4,8 +4,11 @@ Navigation uses session state so it works on Streamlit Cloud (no switch_page / p
 """
 import streamlit as st
 
-# Version: bump this when you release, then push. Footer shows only this (e.g. v3.8).
-PORTAL_VERSION = "3.8"
+# ---------------------------------------------------------------------------
+# VERSION: Update this before every push so the footer shows the correct release.
+# Current: 3.9  →  Bump (e.g. to 3.10) whenever you push changes.
+# ---------------------------------------------------------------------------
+PORTAL_VERSION = "3.9"
 CREATED_BY = "Ravikumar Garg"
 CREATED_BY_EMAIL = "ravikumg@amdocs.com"
 

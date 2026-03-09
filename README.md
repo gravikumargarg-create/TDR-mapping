@@ -54,6 +54,17 @@ git commit -m "Revert to link + upload only"
 git push origin main
 ```
 
+## Before you push
+
+**Update the app version** so the footer shows the right release:
+
+1. Open **`app.py`**.
+2. Find `PORTAL_VERSION = "3.x"` near the top.
+3. Bump it (e.g. `"3.8"` → `"3.9"`), then save.
+4. Commit and push as usual.
+
+If you forget, the app will still show the old version until you bump and push again.
+
 ## Notes
 
 - Your **local** `tdr_excel_script.py` (in the project root) is **not** changed. This app uses the **copy** in `streamlit_tdr/tdr_core.py`.
