@@ -242,13 +242,16 @@ def render_synthetic():
                         tdr_bytes = content
                         tdr_name = selected["name"]
                         try:
-                            wb_tdr = tdr_core.load_workbook(BytesIO(content), read_only=True)
-                            tdr_sheet_names = wb_tdr.sheetnames
+                            wb_tdr = tdr_core.load_workbook(BytesIO(content), read_only=True, data_only=True)
+                            roles = tdr_core.detect_excel_roles(wb_tdr)
+                            all_sheets = wb_tdr.sheetnames
                             wb_tdr.close()
-                            if tdr_sheet_names:
-                                tdr_sheet = st.selectbox("Sheet (TDR)", options=tdr_sheet_names, index=0, key="tdr_sheet")
+                            tdr_sheet_list = roles.get("tdr_sheets") or all_sheets
+                            if tdr_sheet_list:
+                                st.caption(f"**TDR Data** → {tdr_name} ({len(tdr_sheet_list)} sheet(s) will be processed)")
                         except Exception as e:
                             st.warning(str(e))
+                            tdr_sheet_list = []
         st.markdown("**Upload file(s) for LVT Report and/or Device Details**")
         upload_files = st.file_uploader("Excel file(s)", type=["xlsx", "xlsm"], accept_multiple_files=True, key="multi_upload")
     else:
@@ -284,7 +287,7 @@ def render_synthetic():
             if tdr_file and tdr_sheet_list:
                 tdr_bytes = tdr_file.getvalue()
                 tdr_name = tdr_file.name
-                tdr_sheet = st.selectbox("**TDR Data** → " + tdr_file.name, options=tdr_sheet_list, index=0, key="tdr_sheet")
+                st.caption(f"**TDR Data** → {tdr_file.name} ({len(tdr_sheet_list)} sheet(s) will be processed)")
             elif upload_files:
                 st.info("No TDR Data detected. Upload an Excel with TDR sections.")
         lvt_file, lvt_sheet_list = detected["lvt"] or (None, [])
@@ -346,17 +349,21 @@ def render_synthetic():
         st.warning("Please provide **TDR Data** (upload file(s) or pick from SharePoint).")
     elif run and (not lvt_file or lvt_file.size == 0):
         st.warning("Please upload file(s) that include **LVT Report** (sheet named BAN Wise Result).")
-    elif run and tdr_bytes and tdr_sheet and lvt_file and lvt_file.size > 0:
+    elif run and tdr_bytes and lvt_file and lvt_file.size > 0:
         tmpdir = tempfile.mkdtemp(prefix="tdr_streamlit_")
         try:
-            os.environ["TDR_WEB_REPORT_FOLDER"] = tmpdir
-            tdr_path = os.path.join(tmpdir, "tdr_input.xlsx")
-            with open(tdr_path, "wb") as f:
-                f.write(tdr_bytes)
-            sheet_name = tdr_sheet
-            if not sheet_name:
-                st.error("Please select a TDR Data sheet.")
+            wb_tdr = tdr_core.load_workbook(BytesIO(tdr_bytes), read_only=True, data_only=True)
+            roles = tdr_core.detect_excel_roles(wb_tdr)
+            all_sheet_names = wb_tdr.sheetnames
+            wb_tdr.close()
+            sheet_list = roles.get("tdr_sheets") or all_sheet_names
+            if not sheet_list:
+                st.error("No TDR sheets found in the TDR Data Excel.")
             else:
+                os.environ["TDR_WEB_REPORT_FOLDER"] = tmpdir
+                tdr_path = os.path.join(tmpdir, "tdr_input.xlsx")
+                with open(tdr_path, "wb") as f:
+                    f.write(tdr_bytes)
                 lvt_path = os.path.join(tmpdir, "lvt_input.xlsx")
                 with open(lvt_path, "wb") as f:
                     f.write(lvt_file.getvalue())
@@ -369,7 +376,7 @@ def render_synthetic():
                 out_path = os.path.join(tmpdir, "TDR_BAN_Report.xlsx")
                 with st.spinner("Processing…"):
                     result_path, summary = tdr_core.run_extraction_and_report(
-                        [(tdr_path, [sheet_name])], output_excel=out_path,
+                        [(tdr_path, sheet_list)], output_excel=out_path,
                         lvt_report_path=lvt_path, lvt_sheet_name=sheet_to_use if lvt_path else None,
                         device_details_path=device_details_path,
                     )
