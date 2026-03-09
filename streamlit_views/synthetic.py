@@ -248,9 +248,19 @@ def render_synthetic():
                                     z.write(bml_path, "BML.xlsx")
                             buf.seek(0)
                             zip_bytes = buf.getvalue()
+                    qe_mbl_bytes = None
+                    qe_mbl_filename = f"QE_MBL_BAN_LIST_{datetime.now().strftime('%d%m%Y')}.xlsx"
+                    if (summary or {}).get("delivery_status_rows"):
+                        qe_mbl_bytes = tdr_core.build_qe_mbl_ban_list_workbook(
+                            bml_path, device_details_path,
+                            summary["delivery_status_rows"],
+                            device_details_sheet_name=None,
+                        )
                     st.session_state["tdr_result"] = {
                         "report_bytes": report_bytes, "report_filename": report_filename,
-                        "zip_bytes": zip_bytes, "zip_filename": zip_filename, "summary": summary, "lvt_used": True,
+                        "zip_bytes": zip_bytes, "zip_filename": zip_filename,
+                        "qe_mbl_bytes": qe_mbl_bytes, "qe_mbl_filename": qe_mbl_filename,
+                        "summary": summary, "lvt_used": True,
                     }
                 else:
                     st.error("No TDR data found or report generation failed.")
@@ -271,12 +281,19 @@ def render_synthetic():
                 st.info("Report shows only customers that appear in the LVT file (LVT filter applied).")
             else:
                 st.warning("LVT filter could not be applied (no BANs found in LVT sheet). Report shows all rows from Data details. Ensure your LVT file has a sheet like **BAN Wise Result** with BAN and Status columns.")
-        if r.get("zip_bytes"):
-            c1, c2 = st.columns(2)
-            with c1:
+        if r.get("zip_bytes") or r.get("qe_mbl_bytes"):
+            n_cols = 3 if r.get("qe_mbl_bytes") else 2
+            cols = st.columns(n_cols)
+            with cols[0]:
                 st.download_button("Download main report", data=r["report_bytes"], file_name=r["report_filename"], mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_main")
-            with c2:
-                st.download_button("Download per-TDR (ZIP)", data=r["zip_bytes"], file_name=r["zip_filename"], mime="application/zip", key="dl_zip")
+            with cols[1]:
+                if r.get("zip_bytes"):
+                    st.download_button("Download per-TDR (ZIP)", data=r["zip_bytes"], file_name=r["zip_filename"], mime="application/zip", key="dl_zip")
+                else:
+                    st.write("")
+            if r.get("qe_mbl_bytes"):
+                with cols[2]:
+                    st.download_button("Download QE_MBL_BAN_LIST", data=r["qe_mbl_bytes"], file_name=r["qe_mbl_filename"], mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_qe_mbl")
         else:
             st.download_button("Download main report", data=r["report_bytes"], file_name=r["report_filename"], mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="dl_main")
         if r.get("summary"):

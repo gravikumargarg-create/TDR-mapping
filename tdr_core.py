@@ -462,7 +462,7 @@ def _copy_sheet_range_to_workbook(src_ws, start_row, end_row_exclusive, sheet_ti
 
 
 TDR_HEADER_MAP = [
-    ("no_of_ban", ("number of ban", "no. of ban", "no of ban", "bans needed")),
+    ("no_of_ban", ("number of ban", "no. of ban", "no of ban", "bans needed", "number of bans needed", "# of bans", "# of ban")),
     ("account_type", ("account type", "account segment")),
     ("sub_type", ("sub type", "subtype", "account subtype")),
     ("source_plan", ("source price plan", "source protection", "uscc plan")),
@@ -482,7 +482,8 @@ def _find_tdr_section_header_row(ws, start_row, end_row):
         if not row_tuple:
             continue
         row_vals = list(row_tuple)
-        has_no_ban = _find_column_index_in_row(row_vals, ("number of ban", "no. of ban", "no of ban", "bans needed")) is not None
+        no_ban_keywords = ("number of ban", "no. of ban", "no of ban", "bans needed", "number of bans needed", "# of bans", "# of ban")
+        has_no_ban = _find_column_index_in_row(row_vals, no_ban_keywords) is not None
         has_account = _find_column_index_in_row(row_vals, ("account type", "account segment", "account subtype")) is not None
         if not (has_no_ban and has_account):
             continue
@@ -750,6 +751,56 @@ def _add_bml_sheet_to_workbook(wb, bml_path, bans_set=None):
         bml_wb.close()
     except Exception:
         pass
+
+
+def _copy_full_sheet_to_workbook(src_ws, dest_wb, sheet_title):
+    """Copy all rows from src_ws into a new sheet in dest_wb with the given title (values only)."""
+    dest_ws = dest_wb.create_sheet(title=(sheet_title[:31] if sheet_title else "Sheet"))
+    for row in src_ws.iter_rows(values_only=True):
+        dest_ws.append(list(row) if row else [])
+    for c in range(1, src_ws.max_column + 1):
+        letter = get_column_letter(c)
+        if letter in src_ws.column_dimensions and src_ws.column_dimensions[letter].width is not None:
+            dest_ws.column_dimensions[letter].width = src_ws.column_dimensions[letter].width
+
+
+def build_qe_mbl_ban_list_workbook(bml_path, device_details_path, delivery_status_rows, device_details_sheet_name=None):
+    """
+    Build QE_MBL_BAN_LIST workbook with 3 sheets: BML (full), Pre-load device details (full), Delivery Status.
+    delivery_status_rows: list of (tdr_id, requestor, status, asked, delivered, dfs_load, comment).
+    Returns workbook bytes.
+    """
+    from io import BytesIO
+    wb = Workbook()
+    wb.remove(wb.active)
+    if bml_path and os.path.isfile(bml_path):
+        try:
+            bml_wb = load_workbook(bml_path, read_only=False, data_only=True)
+            if bml_wb.sheetnames:
+                _copy_full_sheet_to_workbook(bml_wb[bml_wb.sheetnames[0]], wb, "BML")
+            bml_wb.close()
+        except Exception:
+            pass
+    if device_details_path and os.path.isfile(device_details_path):
+        try:
+            dev_wb = load_workbook(device_details_path, read_only=False, data_only=True)
+            sheet_name = device_details_sheet_name or DEVICE_DETAILS_SHEET_NAME
+            if sheet_name in dev_wb.sheetnames:
+                _copy_full_sheet_to_workbook(dev_wb[sheet_name], wb, DEVICE_DETAILS_SHEET_NAME)
+            elif dev_wb.sheetnames:
+                _copy_full_sheet_to_workbook(dev_wb[dev_wb.sheetnames[0]], wb, DEVICE_DETAILS_SHEET_NAME)
+            dev_wb.close()
+        except Exception:
+            pass
+    headers = ["TDR ID", "Requestor", "Status", "# of BANs Asked", "# of BANs Delivered", "DFS Load Required", "Comment"]
+    ws_ds = wb.create_sheet(title="Delivery Status")
+    ws_ds.append(headers)
+    for row_tuple in (delivery_status_rows or []):
+        ws_ds.append(list(row_tuple))
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf.getvalue()
 
 
 def _normalize_ban(value):
@@ -1318,6 +1369,33 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
         except (PermissionError, Exception):
             pass
 
+    # Delivery Status rows for QE_MBL_BAN_LIST: row 1 = summary, row 2+ = per TDR (TDR ID, QE Team, Status, # BANs Asked, # BANs Delivered, DFS No, Comment)
+    DELIVERY_STATUS_DEFAULT_COMMENT = (
+        'Note:\nIf delivered BANs are not part of "pre-load device details", meaning they were shared earlier '
+        "and already converted and now mapped and delivered as part of this scenario"
+    )
+    delivery_status_rows = []
+    total_asked = 0
+    total_delivered = 0
+    for tdr_id in lvt_tdr_ids:
+        section_rows = tdr_sections_data.get(tdr_id, [])
+        asked = 0
+        for row_dict in section_rows:
+            no_ban = row_dict.get("no_of_ban")
+            if no_ban is not None:
+                try:
+                    asked += int(no_ban)
+                except (TypeError, ValueError):
+                    pass
+        delivered = sum(1 for t, _ in rows_in_lvt if t == tdr_id)
+        status = "Full Delivery" if asked == delivered else "Partial Delivery"
+        delivery_status_rows.append((tdr_id, "QE Team", status, asked, delivered, "No", DELIVERY_STATUS_DEFAULT_COMMENT))
+        total_asked += asked
+        total_delivered += delivered
+    if delivery_status_rows:
+        row1_status = "Full Delivery" if total_asked == total_delivered else "Partial Delivery"
+        delivery_status_rows.insert(0, ("QE Sanity Data", "QE Team", row1_status, total_asked, total_delivered, "No", "NA"))
+
     # Single Excel: Mapping (all LVT customers) + TDR Info + TDR Summary
     if output_excel and ban_to_status:
         # Summary from all LVT customers (same as bulk mapping)
@@ -1352,6 +1430,7 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
         summary["per_tdr_count"] = len(per_tdr_files)
         summary["per_tdr_file_names"] = [os.path.basename(p) for p in per_tdr_files]
         summary["lvt_filter_applied"] = lvt_filter_applied
+        summary["delivery_status_rows"] = delivery_status_rows
         try:
             out_wb.save(output_excel)
             return (output_excel, summary)
