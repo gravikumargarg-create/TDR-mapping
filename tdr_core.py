@@ -1299,7 +1299,6 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
         _fill_tdr_info_status_column(out_ws, ban_to_status)
         _fill_tdr_info_failure_columns(out_ws, ban_to_failures)
         tdr_summary_rows = _build_tdr_summary(rows_in_lvt, ban_to_status)
-<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
         _add_tdr_summary_sheet(out_wb, tdr_summary_rows)
         summary["tdr_passed"] = sum(1 for _r in tdr_summary_rows if _r[5] == "Passed")
         summary["tdr_failed"] = sum(1 for _r in tdr_summary_rows if _r[5] == "Failed")
