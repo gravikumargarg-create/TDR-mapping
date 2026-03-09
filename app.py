@@ -2,27 +2,16 @@
 TDR Portal – Single-app entry. Choose Synthetic data (TDR mapping) or Production data (LVT TDR Delivery).
 Navigation uses session state so it works on Streamlit Cloud (no switch_page / page_link).
 """
-import os
-import subprocess
 import streamlit as st
 
-# Version: BUMP WHEN YOU PUSH so you can confirm deploy (footer shows this).
-PORTAL_VERSION = "3.7"
+# Version: bump this when you release, then push. Footer shows only this (e.g. v3.8).
+PORTAL_VERSION = "3.8"
 CREATED_BY = "Ravikumar Garg"
 CREATED_BY_EMAIL = "ravikumg@amdocs.com"
 
 
 def _version_label():
-    try:
-        base = os.path.dirname(os.path.abspath(__file__))
-        r = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=base, capture_output=True, text=True, timeout=2,
-        )
-        if r.returncode == 0 and r.stdout and r.stdout.strip():
-            return f"v{PORTAL_VERSION} · {r.stdout.strip()}"
-    except Exception:
-        pass
+    """Show only the app version (e.g. v3.7). Bump PORTAL_VERSION in this file when you release."""
     return f"v{PORTAL_VERSION}"
 
 st.set_page_config(page_title="TDR Portal", page_icon="📋", layout="centered", initial_sidebar_state="expanded")
