@@ -324,43 +324,6 @@ def render_synthetic():
         has_lvt = lvt_file and lvt_file.size > 0
         run = st.button("Run TDR", type="primary", use_container_width=True, disabled=not (has_tdr and has_lvt))
 
-    st.markdown("---")
-    st.markdown(
-        """
-        <span style="font-weight: 700;">TDR + BML merge</span>
-        <span title="Upload Device details (CUSTOMER_ID) and BML Excel (TDR sheet + BML sheet). We compare CUSTOMER_ID TDR-wise and build one Excel: TDR sheet, Pre-load device details (filtered), BML sheet (filtered). Same format as reference." style="cursor: help; margin-left: 4px; opacity: 0.8;">ⓘ</span>
-        """,
-        unsafe_allow_html=True,
-    )
-    _c4a, _c4b = st.columns(2)
-    with _c4a:
-        tdr_bml_device_file = st.file_uploader("Device details Excel", type=["xlsx", "xlsm"], key="tdr_bml_device", help="Excel with a sheet containing CUSTOMER_ID column (e.g. Pre-load device details).")
-    with _c4b:
-        tdr_bml_bml_file = st.file_uploader("BML Excel", type=["xlsx", "xlsm"], key="tdr_bml_bml", help="Excel with TDR sheet (BAN column) and BML sheet (BAN column). Same format as TDR-200581.xlsx.")
-    _c4_1, _c4_2, _c4_3 = st.columns([1, 2, 1])
-    with _c4_2:
-        tdr_bml_run = st.button("Generate TDR Excel", key="tdr_bml_run", type="secondary", use_container_width=True, help="Compare CUSTOMER_ID TDR-wise; output one Excel with TDR, Pre-load device details, BML sheets.")
-    if tdr_bml_run and tdr_bml_device_file and tdr_bml_bml_file and tdr_bml_device_file.size > 0 and tdr_bml_bml_file.size > 0:
-        with st.spinner("Comparing CUSTOMER_ID TDR-wise and building Excel…"):
-            out_bytes, err = _run_tdr_bml_merge(tdr_bml_device_file.getvalue(), tdr_bml_bml_file.getvalue())
-        if err:
-            st.error(err)
-        else:
-            st.session_state["tdr_bml_result"] = {"bytes": out_bytes, "name": f"TDR_BML_merged_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"}
-            st.rerun()
-    if "tdr_bml_result" in st.session_state:
-        r = st.session_state["tdr_bml_result"]
-        st.success("TDR Excel ready — download below.")
-        st.download_button(
-            "Download TDR Excel (TDR + Pre-load device details + BML)",
-            data=r["bytes"],
-            file_name=r["name"],
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="tdr_bml_dl",
-            type="primary",
-            use_container_width=True,
-        )
-
     if run and not tdr_bytes and not data_details_files:
         st.warning("Please provide **TDR Data** (upload file(s) or pick from SharePoint).")
     elif run and (not lvt_file or lvt_file.size == 0):

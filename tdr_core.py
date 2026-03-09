@@ -1134,12 +1134,6 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
 
     # Single Excel: TDR Info sheet + TDR Summary only (no BAN Wise Result copy; Status filled from LVT)
     if output_excel and all_rows:
-        out_wb = Workbook()
-        out_ws = out_wb.active
-        out_ws.title = "TDR Info"
-        out_ws.append(["TDR", "BAN", "Status"])
-        for row in all_rows:
-            out_ws.append(list(row))  # Status filled in column C below
         ban_to_status = {}
         ban_to_failures = {}
         sheet_to_use = (lvt_sheet_name or LVT_SHEET_NAME) if lvt_report_path else None
@@ -1154,19 +1148,31 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
                 lvt_wb.close()
             except Exception:
                 pass
-        summary = {"total": len(all_rows), "passed": 0, "failed": 0, "not_found": 0}
+        # Restrict to BANs that appear in LVT customer list so Total BAN does not exceed LVT row count
+        if ban_to_status:
+            all_rows = [(t, b) for t, b in all_rows if _normalize_ban(b) in ban_to_status]
+        distinct_bans = set(_normalize_ban(b) for _, b in all_rows if _normalize_ban(b))
+        summary = {"total": len(distinct_bans), "passed": 0, "failed": 0, "not_found": 0}
+        for ban_str in distinct_bans:
+            status = (ban_to_status.get(ban_str) or "").strip().lower()
+            if status == "passed":
+                summary["passed"] += 1
+            elif status == "failed":
+                summary["failed"] += 1
+            # else: not in LVT or other; we only have LVT BANs so not_found stays 0
+
+        out_wb = Workbook()
+        out_ws = out_wb.active
+        out_ws.title = "TDR Info"
+        out_ws.append(["TDR", "BAN", "Status"])
+        for row in all_rows:
+            out_ws.append(list(row))
         _fill_tdr_info_status_column(out_ws, ban_to_status)
         _fill_tdr_info_failure_columns(out_ws, ban_to_failures)
-        for _tdr, ban in all_rows:
-            ban_str = _normalize_ban(ban)
-            status = ban_to_status.get(ban_str, "Not found") if ban_str else "Not found"
-            if status == "Not found":
-                summary["not_found"] += 1
-            elif str(status).strip().lower() == "passed":
-                summary["passed"] += 1
-            elif str(status).strip().lower() == "failed":
-                summary["failed"] += 1
-        tdr_summary_rows = _build_tdr_summary(all_rows, ban_to_status)
+</think>
+Checking the exact structure of the sheet and loop:
+<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
+Read
         _add_tdr_summary_sheet(out_wb, tdr_summary_rows)
         summary["tdr_passed"] = sum(1 for _r in tdr_summary_rows if _r[5] == "Passed")
         summary["tdr_failed"] = sum(1 for _r in tdr_summary_rows if _r[5] == "Failed")
