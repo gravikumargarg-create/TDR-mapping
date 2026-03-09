@@ -404,18 +404,20 @@ def _copy_cell_style(src_cell, dest_cell):
 def _copy_sheet_range_to_workbook(src_ws, start_row, end_row_exclusive, sheet_title="Data"):
     """
     Copy all rows from src_ws (start_row through end_row_exclusive - 1) and all columns
-    into a new Workbook with one sheet. Copies values, column widths, row heights, and cell formatting
-    (font, fill, border, alignment, number_format). Returns the new Workbook.
+    into a new Workbook with one sheet. Respects merged cells (uses top-left value for merged area).
+    Copies values, column widths, row heights, and cell formatting.
     """
     wb = Workbook()
     dest_ws = wb.active
     dest_ws.title = sheet_title[:31] if sheet_title else "Data"
     max_col = src_ws.max_column
+    merged_ranges = _get_merged_ranges(src_ws)
     for r in range(start_row, end_row_exclusive):
         dest_r = r - start_row + 1
         for c in range(1, max_col + 1):
             src_cell = src_ws.cell(row=r, column=c)
-            dest_cell = dest_ws.cell(row=dest_r, column=c, value=src_cell.value)
+            cell_value = _get_cell_value_respecting_merge(src_ws, r, c, merged_ranges)
+            dest_cell = dest_ws.cell(row=dest_r, column=c, value=cell_value)
             _copy_cell_style(src_cell, dest_cell)
         # Copy row height
         if r in src_ws.row_dimensions and src_ws.row_dimensions[r].height is not None:
