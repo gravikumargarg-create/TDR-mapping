@@ -8,7 +8,7 @@
    In app settings, **Main file path** must be exactly `app.py` (or `app_simple.py` to test deployment).
 
 3. **Python version**  
-   In **Advanced settings**, choose Python 3.10 or 3.11 if you see import or dependency errors.
+   Use **Python 3.12** for this app. Python 3.13 can cause "Oh no" / dependency errors. In App settings → General → Python version, select **3.12** and Save.
 
 4. **Test with minimal app**  
    Set Main file path to `app_simple.py`, save, and reopen the app.  
