@@ -18,7 +18,10 @@ try:
     from openpyxl import load_workbook, Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.utils import get_column_letter
-except ImportError:
+except ImportError as e:
+    # Do not sys.exit(1) when running inside Streamlit (causes "Error running app" with no message)
+    if "streamlit" in sys.modules:
+        raise ImportError("openpyxl is required. Add 'openpyxl>=3.1.0' to requirements.txt and redeploy.") from e
     print("openpyxl is required. Install with: pip install openpyxl")
     sys.exit(1)
 

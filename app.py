@@ -3,6 +3,7 @@ TDR Portal – Single-app entry. Choose Synthetic data (TDR mapping) or Producti
 Navigation uses session state so it works on Streamlit Cloud (no switch_page / page_link).
 """
 import streamlit as st
+import traceback
 
 # ---------------------------------------------------------------------------
 # VERSION: Update this before every push so the footer shows the correct release.
@@ -17,13 +18,15 @@ def _version_label():
     """Show only the app version (e.g. v3.7). Bump PORTAL_VERSION in this file when you release."""
     return f"v{PORTAL_VERSION}"
 
-st.set_page_config(page_title="TDR Portal", page_icon="📋", layout="centered", initial_sidebar_state="expanded")
 
-# Which view we're showing (portal | synthetic | production)
-if "portal_view" not in st.session_state:
-    st.session_state.portal_view = "portal"
+def _run_app():
+    st.set_page_config(page_title="TDR Portal", page_icon="📋", layout="centered", initial_sidebar_state="expanded")
 
-st.markdown(
+    # Which view we're showing (portal | synthetic | production)
+    if "portal_view" not in st.session_state:
+        st.session_state.portal_view = "portal"
+
+    st.markdown(
     """
     <style>
     .stApp { background: linear-gradient(160deg, #e0f2f1 0%, #f1f5f9 50%, #fef3c7 100%) !important; min-height: 100vh; }
@@ -47,83 +50,97 @@ st.markdown(
     section[data-testid="stSidebar"] .stButton:first-of-type > button { background: #0d9488 !important; color: #fff !important; border: none !important; border-radius: 8px !important; font-weight: 500 !important; }
     </style>
     """,
-    unsafe_allow_html=True,
-)
+        unsafe_allow_html=True,
+    )
 
-def _clear_view_state():
-    """Clear result and detection state for the current view so it resets when re-entered."""
-    if st.session_state.portal_view == "synthetic":
-        for key in ("tdr_result", "_detected", "_last_detection_key"):
-            st.session_state.pop(key, None)
-    elif st.session_state.portal_view == "production":
-        st.session_state.pop("lvt_result", None)
-        st.session_state.pop("tdr_list_result", None)
-        st.session_state.pop("cap_validation_result", None)
-        st.session_state.pop("cap_download", None)
-        st.session_state.pop("cap_removed_bytes", None)
-        st.session_state.pop("cap_highlighted_bytes", None)
-        st.session_state.pop("cap_validation_key", None)
+    def _clear_view_state():
+        """Clear result and detection state for the current view so it resets when re-entered."""
+        if st.session_state.portal_view == "synthetic":
+            for key in ("tdr_result", "_detected", "_last_detection_key"):
+                st.session_state.pop(key, None)
+        elif st.session_state.portal_view == "production":
+            st.session_state.pop("lvt_result", None)
+            st.session_state.pop("tdr_list_result", None)
+            st.session_state.pop("cap_validation_result", None)
+            st.session_state.pop("cap_download", None)
+            st.session_state.pop("cap_removed_bytes", None)
+            st.session_state.pop("cap_highlighted_bytes", None)
+            st.session_state.pop("cap_validation_key", None)
 
+    # ----- Back button in sidebar and sub-view content -----
+    if st.session_state.portal_view != "portal":
+        with st.sidebar:
+            if st.button("← Back to TDR Portal", key="back_to_portal", type="secondary", use_container_width=True):
+                _clear_view_state()
+                st.session_state.portal_view = "portal"
+                st.rerun()
 
-# ----- Back button in sidebar and sub-view content -----
-if st.session_state.portal_view != "portal":
-    with st.sidebar:
-        if st.button("← Back to TDR Portal", key="back_to_portal", type="secondary", use_container_width=True):
-            _clear_view_state()
-            st.session_state.portal_view = "portal"
-            st.rerun()
+        if st.session_state.portal_view == "synthetic":
+            from streamlit_views.synthetic import render_synthetic
+            render_synthetic()
+        elif st.session_state.portal_view == "production":
+            from streamlit_views.production import render_production
+            render_production()
+        st.markdown(
+            f"""
+            <div id="portal-footer">
+                <div>Created by: {CREATED_BY}</div>
+                <div>email — {CREATED_BY_EMAIL}</div>
+                <div>v{PORTAL_VERSION}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.stop()
 
-    if st.session_state.portal_view == "synthetic":
-        from streamlit_views.synthetic import render_synthetic
-        render_synthetic()
-    elif st.session_state.portal_view == "production":
-        from streamlit_views.production import render_production
-        render_production()
+    # ----- Portal home -----
     st.markdown(
-        f"""
-        <div id="portal-footer">
-            <div>Created by: {CREATED_BY}</div>
-            <div>email — {CREATED_BY_EMAIL}</div>
-            <div>v{PORTAL_VERSION}</div>
+        """
+        <div class="portal-hero">
+            <h1>TDR Portal</h1>
+            <div class="sub">Choose your tool: TDR wise mapping or Bulk data mapping</div>
         </div>
+        <div class="portal-sub">Select an option below to open the respective tool.</div>
         """,
         unsafe_allow_html=True,
     )
-    st.stop()
 
-# ----- Portal home -----
-st.markdown(
-    """
-    <div class="portal-hero">
-        <h1>TDR Portal</h1>
-        <div class="sub">Choose your tool: TDR wise mapping or Bulk data mapping</div>
-    </div>
-    <div class="portal-sub">Select an option below to open the respective tool.</div>
-    """,
-    unsafe_allow_html=True,
-)
+    col1, col2 = st.columns(2)
 
-col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📋 **TDR wise mapping**", use_container_width=True, type="primary", key="btn_synthetic"):
+            st.session_state.portal_view = "synthetic"
+            st.rerun()
+        st.caption("TDR-wise mapping for synthetic data. Inputs needed: TDR data sheets, device details, and LVT report.")
 
-with col1:
-    if st.button("📋 **TDR wise mapping**", use_container_width=True, type="primary", key="btn_synthetic"):
-        st.session_state.portal_view = "synthetic"
-        st.rerun()
-    st.caption("TDR-wise mapping for synthetic data. Inputs needed: TDR data sheets, device details, and LVT report.")
+    with col2:
+        if st.button("📋 **Bulk data mapping**", use_container_width=True, type="primary", key="btn_production"):
+            st.session_state.portal_view = "production"
+            st.rerun()
+        st.caption("Bulk mapping for both production and synthetic data, with INSERT query creation for BAN Master table. Inputs needed: TDR data, LVT report, and capability reports.")
 
-with col2:
-    if st.button("📋 **Bulk data mapping**", use_container_width=True, type="primary", key="btn_production"):
-        st.session_state.portal_view = "production"
-        st.rerun()
-    st.caption("Bulk mapping for both production and synthetic data, with INSERT query creation for BAN Master table. Inputs needed: TDR data, LVT report, and capability reports.")
+        st.markdown(
+            f"""
+            <div id="portal-footer">
+                <div>Created by: {CREATED_BY}</div>
+                <div>email — {CREATED_BY_EMAIL}</div>
+                <div>{_version_label()}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-st.markdown(
-    f"""
-    <div id="portal-footer">
-        <div>Created by: {CREATED_BY}</div>
-        <div>email — {CREATED_BY_EMAIL}</div>
-        <div>{_version_label()}</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+
+if __name__ == "__main__" or True:
+    try:
+        _run_app()
+    except Exception as e:
+        try:
+            st.set_page_config(page_title="TDR Portal – Error", page_icon="⚠️", layout="centered")
+        except Exception:
+            pass
+        st.error(f"**App error:** {e}")
+        with st.expander("Technical details (for debugging)", expanded=True):
+            st.code(traceback.format_exc(), language="text")
+        st.info("Check that requirements.txt is deployed and the main file path in Streamlit Cloud is correct (e.g. `app.py`). In the Cloud dashboard, open **Logs** to see the full traceback.")
+        st.stop()
