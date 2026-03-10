@@ -37,9 +37,25 @@ except Exception:
 
 
 def _run_app():
+    # Render something immediately so Streamlit has output before any failure
+    err_placeholder = st.empty()
+    try:
+        _run_app_body(err_placeholder)
+    except Exception as e:
+        traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
+        err_placeholder.empty()
+        st.error(f"**App error:** {e}")
+        with st.expander("Technical details", expanded=True):
+            st.code(traceback.format_exc(), language="text")
+        st.stop()
+
+
+def _run_app_body(_err_placeholder):
     # Which view we're showing (portal | synthetic | production)
     if "portal_view" not in st.session_state:
         st.session_state.portal_view = "portal"
+
+    _err_placeholder.empty()
 
     st.markdown(
     """

@@ -1,0 +1,19 @@
+# If you see "Oh no. Error running app" on Streamlit Cloud
+
+1. **Check Logs (most important)**  
+   In [share.streamlit.io](https://share.streamlit.io) → your app → **Manage app** → **Logs**.  
+   The full Python traceback appears there and shows the exact error.
+
+2. **Main file path**  
+   In app settings, **Main file path** must be exactly `app.py` (or `app_simple.py` to test deployment).
+
+3. **Python version**  
+   In **Advanced settings**, choose Python 3.10 or 3.11 if you see import or dependency errors.
+
+4. **Test with minimal app**  
+   Set Main file path to `app_simple.py`, save, and reopen the app.  
+   - If you see "TDR Portal – deployment OK", deployment is fine; switch back to `app.py`.  
+   - If you still see "Oh no", the issue is repo/branch or main file path.
+
+5. **Repo and branch**  
+   Confirm the app is using the correct GitHub repo and branch (e.g. `main`).
