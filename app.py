@@ -2,8 +2,18 @@
 TDR Portal – Single-app entry. Choose Synthetic data (TDR mapping) or Production data (LVT TDR Delivery).
 Navigation uses session state so it works on Streamlit Cloud (no switch_page / page_link).
 """
-import streamlit as st
+import sys
 import traceback
+import streamlit as st
+
+
+def _log_exception(typ, value, tb):
+    """Ensure uncaught exceptions are printed to stderr so Streamlit Cloud logs show them."""
+    traceback.print_exception(typ, value, tb, file=sys.stderr)
+    sys.__excepthook__(typ, value, tb)
+
+
+sys.excepthook = _log_exception
 
 # ---------------------------------------------------------------------------
 # VERSION: Update this before every push so the footer shows the correct release.
@@ -19,9 +29,14 @@ def _version_label():
     return f"v{PORTAL_VERSION}"
 
 
-def _run_app():
+# Must be the first Streamlit command; only allowed once per session (skip on rerun).
+try:
     st.set_page_config(page_title="TDR Portal", page_icon="📋", layout="centered", initial_sidebar_state="expanded")
+except Exception:
+    pass  # Ignore "set_page_config can only be called once" on reruns
 
+
+def _run_app():
     # Which view we're showing (portal | synthetic | production)
     if "portal_view" not in st.session_state:
         st.session_state.portal_view = "portal"
@@ -135,6 +150,8 @@ if __name__ == "__main__" or True:
     try:
         _run_app()
     except Exception as e:
+        # Log to stderr so Streamlit Cloud Logs show the traceback even if UI fails
+        traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
         try:
             st.set_page_config(page_title="TDR Portal – Error", page_icon="⚠️", layout="centered")
         except Exception:
