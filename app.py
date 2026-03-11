@@ -5,6 +5,11 @@ import sys
 import traceback
 import streamlit as st
 
+
+def _python_version():
+    """Return short Python version string (e.g. 3.12.0) for debugging."""
+    return f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+
 try:
     from streamlit.runtime.scriptrunner_utils.exceptions import RerunException
 except ImportError:
@@ -28,4 +33,4 @@ except BaseException as e:
     st.error(f"**App error:** {e}")
     with st.expander("Technical details", expanded=True):
         st.code(traceback.format_exc(), language="text")
-    st.info("Set **Python 3.12** in App settings → General. If this keeps happening, check **Logs** in the app menu.")
+    st.info(f"**Runtime:** Python {_python_version()}. In App settings → General, try changing **Python version** (e.g. to 3.12 or 3.13) and Save to force a fresh redeploy. Check **Logs** in the app menu for the full traceback.")

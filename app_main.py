@@ -20,6 +20,11 @@ def _version_label():
     return f"v{PORTAL_VERSION}"
 
 
+def _python_version():
+    """Return short Python version (e.g. 3.12.0) for debugging."""
+    return f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+
+
 _placeholder = None
 
 
@@ -37,6 +42,7 @@ def run():
         st.error(f"**App error:** {e}")
         with st.expander("Technical details", expanded=True):
             st.code(traceback.format_exc(), language="text")
+        st.caption(f"Runtime: Python {_python_version()}. Try changing Python version in App settings → General and Save to force a redeploy.")
         st.stop()
         return
     if _placeholder is not None:
@@ -106,7 +112,7 @@ def _run_app_body():
             <div id="portal-footer">
                 <div>Created by: {CREATED_BY}</div>
                 <div>email — {CREATED_BY_EMAIL}</div>
-                <div>v{PORTAL_VERSION}</div>
+                <div>{_version_label()} · Python {_python_version()}</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -140,7 +146,7 @@ def _run_app_body():
             <div id="portal-footer">
                 <div>Created by: {CREATED_BY}</div>
                 <div>email — {CREATED_BY_EMAIL}</div>
-                <div>{_version_label()}</div>
+                <div>{_version_label()} · Python {_python_version()}</div>
             </div>
             """,
             unsafe_allow_html=True,
