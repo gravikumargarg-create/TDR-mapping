@@ -824,19 +824,19 @@ def _apply_qe_mbl_sheet_format(ws, alt_fill_color, alt_on_even_row=True):
     max_row, max_col = _qe_mbl_sheet_dimensions(ws)
     if max_row < 1 or max_col < 1:
         return
-    # Row 1 header: give each cell its own style copy so Excel persists formatting
+    # Row 1 header
     for col in range(1, max_col + 1):
         c = ws.cell(row=1, column=col)
-        c.fill = copy(QE_MBL_HEADER_FILL)
-        c.font = copy(QE_MBL_HEADER_FONT)
-        c.border = copy(QE_MBL_THIN_BORDER)
+        c.fill = QE_MBL_HEADER_FILL
+        c.font = QE_MBL_HEADER_FONT
+        c.border = QE_MBL_THIN_BORDER
     for r in range(2, max_row + 1):
         use_alt = (r % 2 == 0) if alt_on_even_row else (r % 2 == 1)
         for col in range(1, max_col + 1):
             cell = ws.cell(row=r, column=col)
             cell.fill = PatternFill(start_color=alt_fill_color, end_color=alt_fill_color, fill_type="solid") if use_alt else PatternFill()
-            cell.font = copy(QE_MBL_DATA_FONT)
-            cell.border = copy(QE_MBL_THIN_BORDER)
+            cell.font = QE_MBL_DATA_FONT
+            cell.border = QE_MBL_THIN_BORDER
 
 
 def _format_delivery_status_sheet(ws):
@@ -847,9 +847,9 @@ def _format_delivery_status_sheet(ws):
     # Header row 1
     for col in range(1, 8):
         c = ws.cell(row=1, column=col)
-        c.fill = copy(QE_MBL_DELIVERY_STATUS_HEADER_FILL)
-        c.font = copy(QE_MBL_DELIVERY_STATUS_HEADER_FONT)
-        c.border = copy(QE_MBL_THIN_BORDER)
+        c.fill = QE_MBL_DELIVERY_STATUS_HEADER_FILL
+        c.font = QE_MBL_DELIVERY_STATUS_HEADER_FONT
+        c.border = QE_MBL_THIN_BORDER
     for i, width in enumerate(QE_MBL_DELIVERY_STATUS_COLUMN_WIDTHS, 1):
         ws.column_dimensions[get_column_letter(i)].width = width
     center_align = Alignment(horizontal="center", vertical="center", wrap_text=False)
@@ -857,14 +857,14 @@ def _format_delivery_status_sheet(ws):
     for r in range(2, max_row + 1):
         for col in range(1, 8):
             cell = ws.cell(row=r, column=col)
-            cell.border = copy(QE_MBL_THIN_BORDER)
-            cell.font = copy(QE_MBL_DATA_FONT)
+            cell.border = QE_MBL_THIN_BORDER
+            cell.font = QE_MBL_DATA_FONT
             if col == 7:
-                cell.alignment = copy(wrap_align)
+                cell.alignment = wrap_align
             elif col in (4, 5, 6):
-                cell.alignment = copy(center_align)
+                cell.alignment = center_align
             if r == 2:
-                cell.fill = copy(QE_MBL_DELIVERY_STATUS_ROW2_FILL)
+                cell.fill = QE_MBL_DELIVERY_STATUS_ROW2_FILL
             elif r > 2:
                 cell.fill = PatternFill()
 
