@@ -26,16 +26,18 @@ try:
 except Exception:
     pass  # Ignore "set_page_config can only be called once" on reruns
 
-# Send one element immediately so the app has output before any failure (helps error UI render).
-_placeholder = st.empty()
+_placeholder = None  # Set inside _run_app() so no st.* at module level except set_page_config
 
 
 def _run_app():
+    global _placeholder
+    _placeholder = st.empty()  # First st.* inside app so Cloud doesn't fail at module level
     try:
         _run_app_body()
     except BaseException as e:
         traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
-        _placeholder.empty()
+        if _placeholder is not None:
+            _placeholder.empty()
         st.error(f"**App error:** {e}")
         with st.expander("Technical details", expanded=True):
             st.code(traceback.format_exc(), language="text")
@@ -43,11 +45,13 @@ def _run_app():
         st.stop()
         return
 
-    _placeholder.empty()
+    if _placeholder is not None:
+        _placeholder.empty()
 
 
 def _run_app_body():
-    _placeholder.empty()
+    if _placeholder is not None:
+        _placeholder.empty()
     # Which view we're showing (portal | synthetic | production)
     if "portal_view" not in st.session_state:
         st.session_state.portal_view = "portal"
@@ -166,7 +170,8 @@ if __name__ == "__main__" or True:
             st.set_page_config(page_title="TDR Portal – Error", page_icon="⚠️", layout="centered")
         except Exception:
             pass
-        _placeholder.empty()
+        if _placeholder is not None:
+            _placeholder.empty()
         st.error(f"**App error:** {e}")
         with st.expander("Technical details (for debugging)", expanded=True):
             st.code(traceback.format_exc(), language="text")
