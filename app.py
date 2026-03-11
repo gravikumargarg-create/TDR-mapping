@@ -6,15 +6,6 @@ import sys
 import traceback
 import streamlit as st
 
-
-def _log_exception(typ, value, tb):
-    """Ensure uncaught exceptions are printed to stderr so Streamlit Cloud logs show them."""
-    traceback.print_exception(typ, value, tb, file=sys.stderr)
-    sys.__excepthook__(typ, value, tb)
-
-
-sys.excepthook = _log_exception
-
 # ---------------------------------------------------------------------------
 # VERSION: Update this before every push so the footer shows the correct release.
 # Current: 3.16  →  Bump (e.g. to 3.17) whenever you push changes.
@@ -29,33 +20,37 @@ def _version_label():
     return f"v{PORTAL_VERSION}"
 
 
-# Must be the first Streamlit command; only allowed once per session (skip on rerun).
+# Must be the first Streamlit command; only allowed once per session (skip on reruns).
 try:
     st.set_page_config(page_title="TDR Portal", page_icon="📋", layout="centered", initial_sidebar_state="expanded")
 except Exception:
     pass  # Ignore "set_page_config can only be called once" on reruns
 
+# Send one element immediately so the app has output before any failure (helps error UI render).
+_placeholder = st.empty()
+
 
 def _run_app():
-    # Render something immediately so Streamlit has output before any failure
-    err_placeholder = st.empty()
     try:
-        _run_app_body(err_placeholder)
-    except Exception as e:
+        _run_app_body()
+    except BaseException as e:
         traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
-        err_placeholder.empty()
+        _placeholder.empty()
         st.error(f"**App error:** {e}")
         with st.expander("Technical details", expanded=True):
             st.code(traceback.format_exc(), language="text")
+        st.info("Set **Python version** to **3.12** in App settings → General if you still see issues.")
         st.stop()
+        return
+
+    _placeholder.empty()
 
 
-def _run_app_body(_err_placeholder):
+def _run_app_body():
+    _placeholder.empty()
     # Which view we're showing (portal | synthetic | production)
     if "portal_view" not in st.session_state:
         st.session_state.portal_view = "portal"
-
-    _err_placeholder.empty()
 
     st.markdown(
     """
@@ -165,15 +160,15 @@ def _run_app_body(_err_placeholder):
 if __name__ == "__main__" or True:
     try:
         _run_app()
-    except Exception as e:
-        # Log to stderr so Streamlit Cloud Logs show the traceback even if UI fails
+    except BaseException as e:
         traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
         try:
             st.set_page_config(page_title="TDR Portal – Error", page_icon="⚠️", layout="centered")
         except Exception:
             pass
+        _placeholder.empty()
         st.error(f"**App error:** {e}")
         with st.expander("Technical details (for debugging)", expanded=True):
             st.code(traceback.format_exc(), language="text")
-        st.info("Check that requirements.txt is deployed and the main file path in Streamlit Cloud is correct (e.g. `app.py`). In the Cloud dashboard, open **Logs** to see the full traceback.")
+        st.info("Set **Python 3.12** in App settings → General. Check **Logs** in the app menu for the full traceback.")
         st.stop()
