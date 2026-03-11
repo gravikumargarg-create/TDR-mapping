@@ -105,14 +105,7 @@ def render_synthetic():
         with _s3:
             bml_file = st.file_uploader("BML file", type=["xlsx", "xlsm"], key="bml_upload_sp", help="BML Excel (TDR + BML sheets).")
         if lvt_file and lvt_file.size > 0:
-            try:
-                wb_lvt = tdr_core.load_workbook(BytesIO(lvt_file.getvalue()), read_only=True, data_only=True)
-                roles_lvt = tdr_core.detect_excel_roles(wb_lvt)
-                wb_lvt.close()
-                lvt_sheet_list = roles_lvt.get("lvt_sheets") or []
-                lvt_sheet = tdr_core.LVT_SHEET_NAME if tdr_core.LVT_SHEET_NAME in (roles_lvt.get("lvt_sheets") or []) else (lvt_sheet_list[0] if lvt_sheet_list else tdr_core.LVT_SHEET_NAME)
-            except Exception:
-                lvt_sheet = tdr_core.LVT_SHEET_NAME
+            lvt_sheet = tdr_core.LVT_SHEET_NAME  # Resolved when Run TDR is clicked
     else:
         tdr_sheet_list = []
         data_details_files = []
@@ -133,26 +126,11 @@ def render_synthetic():
         if data_details_files:
             tdr_bytes = data_details_files[0].getvalue()
             tdr_name = data_details_files[0].name if len(data_details_files) == 1 else f"{len(data_details_files)} file(s)"
-            total_sheets = 0
-            try:
-                for f in data_details_files:
-                    wb_tdr = tdr_core.load_workbook(BytesIO(f.getvalue()), read_only=True, data_only=True)
-                    roles = tdr_core.detect_excel_roles(wb_tdr)
-                    sheets = roles.get("tdr_sheets") or wb_tdr.sheetnames
-                    wb_tdr.close()
-                    total_sheets += len(sheets)
-                st.caption(f"Data details → {tdr_name} ({total_sheets} sheet(s) will be processed)")
-            except Exception:
-                pass
+            # Don't open workbooks here — only when Run TDR is clicked (avoids long "running" state on every upload)
+            st.caption(f"Data details → {tdr_name}")
         if lvt_file and lvt_file.size > 0:
-            try:
-                wb_lvt = tdr_core.load_workbook(BytesIO(lvt_file.getvalue()), read_only=True, data_only=True)
-                roles_lvt = tdr_core.detect_excel_roles(wb_lvt)
-                wb_lvt.close()
-                lvt_sheet_list = roles_lvt.get("lvt_sheets") or []
-                lvt_sheet = tdr_core.LVT_SHEET_NAME if tdr_core.LVT_SHEET_NAME in (roles_lvt.get("lvt_sheets") or []) else (lvt_sheet_list[0] if lvt_sheet_list else tdr_core.LVT_SHEET_NAME)
-            except Exception:
-                lvt_sheet = tdr_core.LVT_SHEET_NAME
+            # Defer LVT workbook read until Run TDR; use default sheet name for now
+            lvt_sheet = tdr_core.LVT_SHEET_NAME
 
     st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
     _run1, _run2, _run3 = st.columns([1, 2, 1])
@@ -202,12 +180,20 @@ def render_synthetic():
                 lvt_path = os.path.join(tmpdir, "lvt_input.xlsx")
                 with open(lvt_path, "wb") as f:
                     f.write(lvt_file.getvalue())
+                # Resolve LVT sheet name only when running (we deferred workbook read above)
+                try:
+                    wb_lvt = tdr_core.load_workbook(lvt_path, read_only=True, data_only=True)
+                    roles_lvt = tdr_core.detect_excel_roles(wb_lvt)
+                    wb_lvt.close()
+                    lvt_sheet_list = roles_lvt.get("lvt_sheets") or []
+                    sheet_to_use = (tdr_core.LVT_SHEET_NAME if tdr_core.LVT_SHEET_NAME in (roles_lvt.get("lvt_sheets") or []) else (lvt_sheet_list[0] if lvt_sheet_list else tdr_core.LVT_SHEET_NAME)).strip() or tdr_core.LVT_SHEET_NAME
+                except Exception:
+                    sheet_to_use = tdr_core.LVT_SHEET_NAME
                 device_details_path = None
                 if device_file and device_file.size > 0:
                     device_details_path = os.path.join(tmpdir, "device_details.xlsx")
                     with open(device_details_path, "wb") as f:
                         f.write(device_file.getvalue())
-                sheet_to_use = (lvt_sheet or tdr_core.LVT_SHEET_NAME).strip() or tdr_core.LVT_SHEET_NAME
                 out_path = os.path.join(tmpdir, "TDR_BAN_Report.xlsx")
                 bml_path = None
                 if bml_file and bml_file.size > 0:
