@@ -5,6 +5,11 @@ import sys
 import traceback
 import streamlit as st
 
+try:
+    from streamlit.runtime.scriptrunner_utils.exceptions import RerunException
+except ImportError:
+    RerunException = type("RerunException", (BaseException,), {})  # no-op if path changes
+
 # ---------------------------------------------------------------------------
 PORTAL_VERSION = "3.16"
 CREATED_BY = "Ravikumar Garg"
@@ -24,6 +29,8 @@ def run():
     try:
         _run_app_body()
     except BaseException as e:
+        if isinstance(e, RerunException) or type(e).__name__ == "RerunException":
+            raise  # st.rerun() uses this; let it propagate so the rerun happens
         traceback.print_exception(type(e), e, e.__traceback__, file=sys.stderr)
         if _placeholder is not None:
             _placeholder.empty()
