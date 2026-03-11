@@ -200,7 +200,7 @@ def render_synthetic():
                     bml_path = os.path.join(tmpdir, "bml_input.xlsx")
                     with open(bml_path, "wb") as f:
                         f.write(bml_file.getvalue())
-                with st.spinner("Processing…"):
+                with st.spinner("Running TDR extraction (this may take a minute for large files)…"):
                     result_path, summary = tdr_core.run_extraction_and_report(
                         all_sources, output_excel=out_path,
                         lvt_report_path=lvt_path, lvt_sheet_name=sheet_to_use if lvt_path else None,

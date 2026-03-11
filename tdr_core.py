@@ -1454,6 +1454,8 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
     rows_in_lvt = [(t, b) for t, b in all_rows if _normalize_ban(b) in ban_to_status] if ban_to_status else all_rows
 
     # Per-TDR Excels: only for TDRs with at least one LVT-matched BAN; copy from the sheet where those BANs exist (same TDR can appear on multiple sheets)
+    # Cache workbooks by excel_path so we open each file once (much faster when many TDRs share the same file)
+    _wb_cache = {}
     lvt_tdr_ids = sorted(set(t for t, _ in rows_in_lvt))
     seen_tdr = set()
     for tdr_id in lvt_tdr_ids:
@@ -1476,13 +1478,13 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
             continue
         _tid, excel_path, sheet_name, start_row, end_row_exclusive = range_entry
         try:
-            src_wb = load_workbook(excel_path, read_only=False, data_only=True)
+            if excel_path not in _wb_cache:
+                _wb_cache[excel_path] = load_workbook(excel_path, read_only=False, data_only=True)
+            src_wb = _wb_cache[excel_path]
             if sheet_name not in src_wb.sheetnames:
-                src_wb.close()
                 continue
             src_ws = src_wb[sheet_name]
             copy_wb = _copy_sheet_range_to_workbook(src_ws, start_row, end_row_exclusive, sheet_title=tdr_id)
-            src_wb.close()
             if device_details_path and os.path.isfile(device_details_path):
                 device_data = _load_device_details(device_details_path, device_details_sheet_name)
                 if device_data:
@@ -1493,6 +1495,11 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
             copy_wb.save(path)
             per_tdr_files.add(path)
         except (PermissionError, Exception):
+            pass
+    for _cached_wb in _wb_cache.values():
+        try:
+            _cached_wb.close()
+        except Exception:
             pass
 
     # Delivery Status rows for QE_MBL_BAN_LIST: row 1 = summary, row 2+ = per TDR (TDR ID, QE Team, Status, # BANs Asked, # BANs Delivered, DFS No, Comment)
