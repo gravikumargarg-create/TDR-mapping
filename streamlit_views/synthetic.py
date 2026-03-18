@@ -108,7 +108,6 @@ def render_synthetic():
     else:
         tdr_sheet_list = []
         data_details_files = []
-        st.markdown("**1. Data details input file(s)** | **2. LVT file**")
         _r1a, _r1b = st.columns(2)
         with _r1a:
             data_details_upload = st.file_uploader("Data details input file(s)", type=["xlsx", "xlsm"], accept_multiple_files=True, key="data_details_upload", help="One or more TDR data Excel files (all sheets will be processed).")
