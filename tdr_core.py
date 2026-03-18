@@ -1290,6 +1290,37 @@ def _row_val(v):
     return str(v).strip() if v != "" else ""
 
 
+def _collapse_section_rows(section_rows):
+    """Collapse consecutive rows with same no_of_ban/account_type/target_soc (merged cells) into logical rows.
+    Returns (collapsed_list, total_asked). collapsed_list is list of (row_dict, bans_list)."""
+    collapsed = []
+    i = 0
+    while i < len(section_rows):
+        row_dict = section_rows[i]
+        no_ban = row_dict.get("no_of_ban")
+        key = (no_ban, _row_val(row_dict.get("account_type")), _row_val(row_dict.get("target_soc")))
+        group_bans = list(row_dict.get("bans_list") or [])
+        j = i + 1
+        while j < len(section_rows):
+            next_row = section_rows[j]
+            next_key = (next_row.get("no_of_ban"), _row_val(next_row.get("account_type")), _row_val(next_row.get("target_soc")))
+            if next_key != key:
+                break
+            group_bans.extend(next_row.get("bans_list") or [])
+            j += 1
+        collapsed.append((row_dict, group_bans))
+        i = j
+    total_asked = 0
+    for row_dict, _ in collapsed:
+        nb = row_dict.get("no_of_ban")
+        if nb is not None:
+            try:
+                total_asked += int(nb)
+            except (TypeError, ValueError):
+                pass
+    return collapsed, total_asked
+
+
 def _write_one_excel_per_tdr(all_rows, ban_to_status, output_folder, tdr_sections_data=None):
     from collections import defaultdict
     os.makedirs(output_folder, exist_ok=True)
@@ -1301,16 +1332,16 @@ def _write_one_excel_per_tdr(all_rows, ban_to_status, output_folder, tdr_section
             if tdr not in tdr_sections_data:
                 continue
             section_rows = tdr_sections_data[tdr]
+            collapsed, _ = _collapse_section_rows(section_rows)
             wb = Workbook()
             ws = wb.active
             ws.title = tdr[:31]
             ws.append(out_headers)
-            for i, row_dict in enumerate(section_rows, 1):
-                scn = f"SCN{i:02d}"
+            for idx, (row_dict, bans_list) in enumerate(collapsed, 1):
+                scn = f"SCN{idx:02d}"
                 no_ban = row_dict.get("no_of_ban", "")
-                bans_list = row_dict.get("bans_list") or []
                 provided_count = len(bans_list)
-                needed = no_ban if isinstance(no_ban, int) else (int(no_ban) if str(no_ban).strip().isdigit() else 0)
+                needed = no_ban if isinstance(no_ban, int) else (int(no_ban) if no_ban and str(no_ban).strip().isdigit() else 0)
                 comment = _row_val(row_dict.get("comment"))
                 if provided_count >= needed or needed == 0:
                     comment = ""
@@ -1512,14 +1543,7 @@ def run_extraction_and_report(all_sources, output_excel=None, lvt_report_path=No
     total_delivered = 0
     for tdr_id in lvt_tdr_ids:
         section_rows = tdr_sections_data.get(tdr_id, [])
-        asked = 0
-        for row_dict in section_rows:
-            no_ban = row_dict.get("no_of_ban")
-            if no_ban is not None:
-                try:
-                    asked += int(no_ban)
-                except (TypeError, ValueError):
-                    pass
+        _, asked = _collapse_section_rows(section_rows)
         delivered = sum(1 for t, _ in rows_in_lvt if t == tdr_id)
         status = "Full Delivery" if asked == delivered else "Partial Delivery"
         delivery_status_rows.append((tdr_id, "QE Team", status, asked, delivered, "No", DELIVERY_STATUS_DEFAULT_COMMENT))
