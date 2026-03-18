@@ -96,7 +96,6 @@ def render_synthetic():
                                 st.caption(f"TDR Data → {tdr_name} ({len(tdr_sheet_list)} sheet(s))")
                         except Exception as e:
                             st.warning(str(e))
-        st.markdown("**2. LVT file** | **3. Device details** | **4. BML file**")
         _s1, _s2, _s3 = st.columns(3)
         with _s1:
             lvt_file = st.file_uploader("LVT file", type=["xlsx", "xlsm"], key="lvt_upload_sp", help="Excel with BAN Wise Result sheet.")
@@ -115,7 +114,6 @@ def render_synthetic():
             data_details_upload = st.file_uploader("Data details input file(s)", type=["xlsx", "xlsm"], accept_multiple_files=True, key="data_details_upload", help="One or more TDR data Excel files (all sheets will be processed).")
         with _r1b:
             lvt_file = st.file_uploader("LVT file", type=["xlsx", "xlsm"], key="lvt_upload", help="Excel with BAN Wise Result sheet.")
-        st.markdown("**3. Device details** | **4. BML file**")
         _r2a, _r2b = st.columns(2)
         with _r2a:
             device_file = st.file_uploader("Device details", type=["xlsx", "xlsm"], key="device_upload", help="Excel with CUSTOMER_ID column. Added to ZIP when provided.")
